@@ -1,0 +1,12 @@
+import {readFile,writeFile,readdir} from 'node:fs/promises';
+import {fileURLToPath} from 'node:url';
+import {resolve,join} from 'node:path';
+const root=fileURLToPath(new URL('..',import.meta.url));
+let html=await readFile(join(root,'index.html'),'utf8');
+const css=await readFile(join(root,'style.css'),'utf8');
+const core=(await readFile(join(root,'core.js'),'utf8')).replaceAll('export ','');
+let js=(await readFile(join(root,'game.js'),'utf8')).replace(/^import .*?;\n/,'');
+const assets={};for(const n of await readdir(join(root,'assets')))if(n.endsWith('.png'))assets[n]='data:image/png;base64,'+(await readFile(join(root,'assets',n))).toString('base64');
+js=js.replace('img.src=`assets/${file}`;','img.src=EMBEDDED_IMAGES[file];');
+html=html.replace('<link rel="stylesheet" href="style.css">','<style>'+css+'</style>').replace('<script type="module" src="game.js"></script>','<script>const EMBEDDED_IMAGES='+JSON.stringify(assets)+';\n'+core+'\n'+js+'</script>');
+const output=resolve(process.argv[2]||join(root,'standalone.html'));await writeFile(output,html);console.log('Saved offline game:',output);

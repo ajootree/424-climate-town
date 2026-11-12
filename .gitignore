@@ -1,0 +1,6 @@
+node_modules/
+qa/
+standalone.html
+*.zip
+.openai/
+.env*

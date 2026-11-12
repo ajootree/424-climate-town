@@ -1,0 +1,13 @@
+{
+  "name": "five-villages-climate-quest",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "check": "node --check game.js && node --check core.js"
+  },
+  "devDependencies": {
+    "@napi-rs/canvas": "^1.1.1"
+  }
+}
