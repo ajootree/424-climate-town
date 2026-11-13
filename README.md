@@ -2,6 +2,10 @@
 
 초등 과학 「기후변화와 우리 생활」을 바탕으로 한 무광 동화풍 2D 횡스크롤 RPG입니다. 삽화 도입부와 첫 마을의 퀘스트 5개, 보스, 첫 수호석 엔딩까지 플레이할 수 있습니다.
 
+소스 저장소: https://github.com/ajootree/424-climate-town
+
+GitHub Pages 최초 설정: 저장소 Settings → Pages → Source를 Deploy from a branch, Branch를 main, 폴더를 / (root)로 선택하고 Save합니다. 이 설정 후 main에 새 커밋을 올리면 게임 페이지가 자동 갱신됩니다. 정적 파일이라 별도 빌드 명령은 필요하지 않습니다.
+
 ## 실행과 배포
 
 정적 HTML·JavaScript·이미지로 구성되어 서버 코드, API 키, 로그인, 런타임 의존성 설치가 필요하지 않습니다. GitHub Pages는 main 브랜치의 저장소 루트(/)에서 배포하도록 설정하며, main에 새 변경을 올리면 같은 주소가 갱신됩니다. .nojekyll을 유지합니다.
