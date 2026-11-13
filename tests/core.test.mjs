@@ -27,3 +27,8 @@ test('기력 문제는 이미 소개한 학습 범위에서 출제한다',()=>{
 test('지원하지 않는 저장 버전은 안전하게 새 게임으로 시작한다',()=>{
  const g=new Adventure({version:999,quest:4,finished:true});assert.equal(g.s.quest,0);assert.equal(g.s.finished,false);
 });
+
+
+test('캐릭터 선택과 이름을 검증하고 기존 저장의 퀘스트를 유지한다',()=>{
+ const g=new Adventure({version:1,quest:2,accepted:true,supplies:['water']});assert.equal(g.s.profileReady,false);assert.equal(g.setProfile('female','   '),false);assert.equal(g.setProfile('other','새봄'),false);assert.equal(g.setProfile('female','  새봄  '),true);const r=new Adventure(JSON.parse(g.serialize()));assert.equal(r.s.avatar,'female');assert.equal(r.s.playerName,'새봄');assert.equal(r.s.profileReady,true);assert.equal(r.s.quest,2);assert.deepEqual(r.s.supplies,['water']);g.setProfile('male','하나둘셋넷다섯여섯일곱');assert.equal(Array.from(g.s.playerName).length,8);
+});

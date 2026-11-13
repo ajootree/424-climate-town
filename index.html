@@ -10,11 +10,12 @@
   <link rel="preload" href="assets/fonts/nexon-lv1-bold.woff" as="font" type="font/woff" crossorigin>
   <link rel="preload" href="assets/fonts/nexon-lv2-regular.woff" as="font" type="font/woff" crossorigin>
   <link rel="preload" href="assets/fonts/nexon-lv2-bold.woff" as="font" type="font/woff" crossorigin>
-  <link rel="stylesheet" href="style.css?v=nexon-1">
+  <link rel="stylesheet" href="style.css?v=adventure-2">
 </head>
 <body>
   <main id="game-shell" aria-label="다섯 마을 수호대 게임">
     <canvas id="game" tabindex="0" aria-label="횡스크롤 게임. 방향키로 이동, 스페이스로 점프, Z로 공격, X로 스킬, E로 대화, Q로 기력 충전."></canvas>
+    <input id="player-name" type="text" maxlength="8" placeholder="내 이름" aria-label="수호대 이름, 최대 8글자" autocomplete="off" autocapitalize="off" spellcheck="false" hidden>
     <div id="loading" role="status"><strong>다섯 마을 수호대</strong><span>그림과 모험을 준비하고 있어요…</span><progress id="load-progress" max="100" value="0"></progress></div>
     <div id="rotate"><strong>가로로 돌려주세요</strong><span>넓게 펼쳐지는 모험이 기다려요.</span></div>
     <div id="live" role="status" aria-live="polite"></div>
@@ -23,6 +24,6 @@
       <button id="a-jump">점프</button><button id="a-attack">공격</button><button id="a-interact">대화 또는 조사</button><button id="a-charge">기력 충전</button>
     </div>
   </main>
-  <script type="module" src="game.js?v=polish-1"></script>
+  <script type="module" src="game.js?v=adventure-2"></script>
 </body>
 </html>
