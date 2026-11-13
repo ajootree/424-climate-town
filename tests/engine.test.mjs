@@ -35,7 +35,7 @@ async function engine(){
 
 test('생성 이미지 렌더링·키보드·조이패드·퀘스트 5개와 엔딩까지 실행한다',async()=>{
  const e=await engine(),{q,tick,key,pointer,snapshot,closeDialog,closeReward}=e;
- snapshot('01-title');q.start(true);assert.equal(q.mode,'intro');q.render();snapshot('02-intro');q.finishIntro();q.render();snapshot('03-village-desktop');snapshot('04-village-tablet',1024,768);snapshot('05-village-phone',932,430);snapshot('06-village-desktop',1280,720);
+ snapshot('01-title-tablet',1024,768);snapshot('01-title-phone',932,430);snapshot('01-title',1280,720);q.start(true);assert.equal(q.mode,'intro');q.render();snapshot('02-intro');q.finishIntro();q.render();snapshot('03-village-desktop');snapshot('04-village-tablet',1024,768);snapshot('05-village-phone',932,430);snapshot('06-village-desktop',1280,720);
  const old=q.player.x;key('ArrowRight',.25);assert.ok(q.player.x>old+45);key('ArrowLeft',.25);assert.ok(Math.abs(q.player.x-old)<5);
  pointer('pointerdown',1,155,616);tick(.25);assert.ok(q.player.x>old+40);pointer('pointerup',1,155,616);assert.equal(q.stick.x,0);
  const beforeTouch=q.player.x,beforeEnergy=q.s.energy;pointer('pointerdown',2,155,616);pointer('pointerdown',3,1180,616);tick(.5);assert.ok(q.player.x>beforeTouch+80,'two touch contacts support moving and attacking together');assert.ok(q.s.energy<beforeEnergy,'touch attack consumes energy');pointer('pointerup',2,155,616);pointer('pointerup',3,1180,616);
