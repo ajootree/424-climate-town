@@ -17,9 +17,9 @@ async function engine(){
  const box={width:1280,height:720};nodes['#game']=canvas;
  const document={hidden:false,querySelector:n=>nodes[n]??=( {textContent:'',value:0,remove(){},addEventListener(){}}),addEventListener:(n,f)=>events[n]=f,createElement:()=>createCanvas(1,1)};
  class LocalImage extends Image{set src(value){super.src=readFileSync(root+'/'+value);}get src(){return super.src;}}
- const context={CORE,console,document,innerWidth:1280,innerHeight:720,devicePixelRatio:1,localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},Image:LocalImage,requestAnimationFrame:f=>context.nextFrame=f,addEventListener:(n,f)=>events[n]=f,speechSynthesis:{cancel(){},speak(){},getVoices(){return[]}},SpeechSynthesisUtterance:class{constructor(t){this.text=t}},setTimeout,clearTimeout};context.window=context;vm.createContext(context);
+ const context={CORE,console,document,innerWidth:1280,innerHeight:720,devicePixelRatio:1,localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},Image:LocalImage,requestAnimationFrame:f=>context.nextFrame=f,addEventListener:(n,f)=>events[n]=f,setTimeout,clearTimeout};context.window=context;vm.createContext(context);
  let src=readFileSync(root+'/game.js','utf8').replace(/^import .*?;\n/,'const {Adventure, QUESTS, QUESTIONS, clamp}=CORE;\n');
- src+='\nglobalThis.qa={get s(){return s},get player(){return player},get mode(){return mode},get modal(){return modal},get enemies(){return enemies},get hits(){return hits},get stick(){return stick},get W(){return W},get H(){return H},start,finishIntro,nextDialog,interact,attack,jump,openQuiz,answerQuiz,closeQuiz,chooseGraph,choosePlan,render,resize,update,save};';
+ src+='\nglobalThis.qa={get s(){return s},get player(){return player},get mode(){return mode},get modal(){return modal},get enemies(){return enemies},get hits(){return hits},get stick(){return stick},get cam(){return cam},get pickups(){return pickups},get toast(){return toast},typed,typingDone,syncCamera,get W(){return W},get H(){return H},start,finishIntro,nextDialog,interact,attack,jump,openQuiz,answerQuiz,closeQuiz,chooseGraph,choosePlan,render,resize,update,save};';
  vm.runInContext(src,context,{filename:'game.js'});
  for(let i=0;i<100&&context.qa.mode==='loading';i++)await new Promise(r=>setTimeout(r,10));
  assert.equal(context.qa.mode,'title','all generated image assets load and atlas slices compile');
@@ -59,4 +59,25 @@ test('생성 이미지 렌더링·키보드·조이패드·퀘스트 5개와 엔
  while(boss.hp>0){if(q.s.energy<20){q.openQuiz();const m=q.modal;q.answerQuiz(m.order.findIndex(i=>i===m.question.correct));q.closeQuiz();}q.attack(true);tick(.84);}
  assert.ok(q.s.bossDead);q.player.x=4850;q.player.y=568;q.interact();assert.equal(q.modal.type,'plans');snapshot('10-village-actions');q.choosePlan(q.modal.order.findIndex(i=>i>=3));assert.ok(q.modal.wrong);const correct=q.modal.order.map((v,i)=>v<3?i:-1).filter(i=>i>=0);for(const i of correct)q.choosePlan(i);assert.ok(q.s.finished);closeReward();assert.equal(q.mode,'ending');snapshot('11-first-village-ending');q.save();
  assert.deepEqual(Array.from(q.s.completed),[0,1,2,3,4]);
+});
+
+
+test('대사 바로 표시·카메라 정지·획득 연출과 퀘스트 여백을 확인한다',async()=>{
+ const e=await engine(),{q,tick,key,snapshot,closeDialog}=e;
+ q.start(true);q.finishIntro();q.player.x=320;q.interact();
+ assert.equal(q.modal.elapsed,0);assert.equal(q.typed(q.modal.lines[0],q.modal.elapsed),'');
+ tick(.12);assert.ok(q.typed(q.modal.lines[0],q.modal.elapsed).length>0);assert.ok(!q.typingDone(q.modal.lines[0],q.modal.elapsed));
+ q.nextDialog();assert.equal(q.modal.index,0,'first tap reveals the current line');assert.ok(q.typingDone(q.modal.lines[0],q.modal.elapsed));
+ snapshot('12-dialog-revealed');q.nextDialog();assert.equal(q.modal.index,1);assert.equal(q.modal.elapsed,0);closeDialog();
+ q.player.x=900;q.syncCamera();const worldLandmark=1000-q.cam,beforeX=q.player.x;
+ key('ArrowRight',.5);assert.ok(Math.abs((q.player.x-beforeX)-95)<.01,'movement is slower');
+ assert.ok(Math.abs((worldLandmark-(1000-q.cam))-(q.player.x-beforeX))<.01,'camera uses exactly the world displacement');
+ const stopped=q.cam;tick(.8);assert.equal(q.cam,stopped,'camera does not drift after input stops');
+ q.s.quest=2;q.s.accepted=true;q.s.supplies=['water'];q.s.killed=['thorn-0','thorn-1'];q.player.x=2850;q.player.y=568;q.syncCamera();q.interact();
+ assert.equal(q.pickups.length,1);assert.equal(q.s.supplies.length,2);assert.equal(q.pickups[0].elapsed,0);
+ tick(.25);assert.ok(q.pickups[0].elapsed>0);snapshot('13-pickup-and-tracker');
+ snapshot('14-tracker-tablet',1024,768);snapshot('15-tracker-phone',932,430);
+ for(let i=0;i<5;i++){q.s.quest=i;snapshot(`16-tracker-quest-${i}`,932,430);}
+ tick(1.3);assert.equal(q.pickups.length,0,'pickup image effect expires');
+ assert.ok(!q.hits.some(h=>/듣기|읽기/.test(h.label)),'no voice-reading buttons');
 });
