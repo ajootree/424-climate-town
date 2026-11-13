@@ -7,7 +7,10 @@
   <meta name="description" content="그림으로 보고, 모험하며 배우는 기후 수호대. 도입부와 햇살마을의 다섯 퀘스트.">
   <title>다섯 마을 수호대 · 햇살마을</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="style.css">
+  <link rel="preload" href="assets/fonts/nexon-lv1-bold.woff" as="font" type="font/woff" crossorigin>
+  <link rel="preload" href="assets/fonts/nexon-lv2-regular.woff" as="font" type="font/woff" crossorigin>
+  <link rel="preload" href="assets/fonts/nexon-lv2-bold.woff" as="font" type="font/woff" crossorigin>
+  <link rel="stylesheet" href="style.css?v=nexon-1">
 </head>
 <body>
   <main id="game-shell" aria-label="다섯 마을 수호대 게임">
@@ -20,6 +23,6 @@
       <button id="a-jump">점프</button><button id="a-attack">공격</button><button id="a-interact">대화 또는 조사</button><button id="a-charge">기력 충전</button>
     </div>
   </main>
-  <script type="module" src="game.js"></script>
+  <script type="module" src="game.js?v=nexon-1"></script>
 </body>
 </html>

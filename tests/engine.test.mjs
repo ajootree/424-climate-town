@@ -7,7 +7,9 @@ import {createCanvas,Image,GlobalFonts} from '@napi-rs/canvas';
 import * as CORE from '../core.js';
 
 const root=fileURLToPath(new URL('..',import.meta.url));
-GlobalFonts.registerFromPath('/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc','Apple SD Gothic Neo');
+GlobalFonts.registerFromPath(root+'/assets/fonts/nexon-lv1-bold.woff','NEXON Lv1 Gothic');
+GlobalFonts.registerFromPath(root+'/assets/fonts/nexon-lv2-regular.woff','NEXON Lv2 Gothic');
+GlobalFonts.registerFromPath(root+'/assets/fonts/nexon-lv2-bold.woff','NEXON Lv2 Gothic');
 
 async function engine(){
  const realCanvas=createCanvas(1280,720),events={},canvasEvents={},storage=new Map(),nodes={};

@@ -1,0 +1,17 @@
+[
+  {
+    "file": "nexon-lv1-bold.woff",
+    "url": "https://raw.githubusercontent.com/projectnoonnu/noonfonts_20-04/master/NEXON%20Lv1%20Gothic%20OTF%20Bold.woff",
+    "git_blob_sha": "b67a1f1fd603e87d1f7c903f91da7aec2c9e205c"
+  },
+  {
+    "file": "nexon-lv2-regular.woff",
+    "url": "https://raw.githubusercontent.com/projectnoonnu/noonfonts_20-04/master/NEXON%20Lv2%20Gothic.woff",
+    "git_blob_sha": "eafcb51dde3e8c933dc1508638e40fb93c7becea"
+  },
+  {
+    "file": "nexon-lv2-bold.woff",
+    "url": "https://raw.githubusercontent.com/projectnoonnu/noonfonts_20-04/master/NEXON%20Lv2%20Gothic%20Bold.woff",
+    "git_blob_sha": "92327c04144b0af54cd9af655509306e7e1679f4"
+  }
+]
