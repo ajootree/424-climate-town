@@ -1,4 +1,4 @@
-import {Adventure, QUESTS, QUESTIONS, clamp} from './core.js?v=adventure-2';
+import {Adventure, QUESTS, QUESTIONS, HAIRSTYLES, EXPRESSIONS, clamp} from './core.js?v=custom-story-3';
 
 const canvas=document.querySelector('#game'),ctx=canvas.getContext('2d',{alpha:false});
 const SAVE_KEY='five-villages-sun-v1';
@@ -8,7 +8,7 @@ let saved=null;try{saved=JSON.parse(localStorage.getItem(SAVE_KEY));}catch{}
 let model=new Adventure(saved),s=model.s;
 let W=1280,H=720,ground=568,mode='loading',modal=null,cam=0,time=0,lastTime=0;
 let hits=[],keys=new Set(),held=new Set(),pointerActions=new Map(),stick={id:null,x:0,y:0};
-let toast=null,floaters=[],effects=[],pickups=[],scene=0,sceneTime=0,quizIndex=0,lastQuestion=-1;
+let toast=null,floaters=[],effects=[],pickups=[],scene=0,sceneTime=0,transitionTime=0,quizIndex=0,lastQuestion=-1;
 let player={x:s.x,y:ground,vx:0,vy:0,dir:1,onGround:true,attack:0,cooldown:0,invincible:0};
 let audioContext=null,autoSaveTime=0,interactionHint=null;
 const images={},atlases={};
@@ -24,7 +24,9 @@ const MISSIONS={
 function activeEnemies(){return encounter?enemies.filter(e=>e.type===MISSIONS[encounter.quest].enemy):[];}
 function enemiesLeft(q=s.quest){return enemies.filter(e=>e.type===MISSIONS[q]?.enemy&&e.hp>0).length;}
 function portalForQuest(){const m=MISSIONS[s.quest];return m&&s.accepted&&!s.finished&&enemiesLeft()?{...m,id:'portal',kind:'portal',art:'portal',name:'전투 포탈',y:ground}:null;}
-function introText(){return intro[scene].text.replaceAll('{name}',s.playerName);}
+function introText(){return (intro[scene].text||'').replaceAll('{name}',s.playerName);}
+function introDelay(){return intro[scene].ruined?.7:0;}
+function advanceScene(){transitionTime=sceneTime;if(++scene>=intro.length)finishIntro();else sceneTime=0;}
 let walkDistance=0;
 function syncCamera(){cam=clamp(player.x-W*.42,0,Math.max(0,(encounter?ARENA_WIDTH:5300)-W));}
 function typedCount(t,elapsed){return Math.min(Array.from(t).length,Math.floor(Math.max(0,elapsed)*TYPE_SPEED));}
@@ -42,10 +44,12 @@ const intro=[
  {text:'물빛마을의 강은 이웃을 이어줬어요.',at:[.72,.6],zoom:1.8},
  {text:'별고개마을은 여행자를 맞아줬어요.',at:[.83,.2],zoom:1.8},
  {text:'어느 밤, 괴물의 저주가 퍼졌어요.',at:[.55,.2],zoom:1.25,dark:true,boss:true},
- {text:'폭염 · 한파 · 가뭄 · 홍수 · 폭설',at:[.5,.5],zoom:1,dark:true},
- {text:'다섯 수호석을 되찾아야 해요.',at:[.5,.5],zoom:1,stone:true},
- {text:'“우리 마을을 도와주겠니?”',at:[.25,.7],zoom:1.5,chief:true},
- {text:'첫 번째 목적지, 햇살마을!',at:[.23,.7],zoom:1.8}
+ {blackout:true,duration:1.2},
+ {text:'다음 날, 마을의 모습이 달라졌어요.',at:[.5,.5],zoom:1,ruined:true},
+ {text:'텅 빈 광장… 이웃들은 어디로 갔을까요?',at:[.23,.7],zoom:1.8,ruined:true},
+ {text:'다섯 수호석에 무슨 일이 생긴 걸까요?',at:[.5,.5],zoom:1,stone:true,ruined:true},
+ {text:'“우리 마을을 한번 살펴봐 주겠니?”',at:[.25,.7],zoom:1.5,chief:true,ruined:true},
+ {text:'첫 번째 목적지, 햇살마을!',at:[.23,.7],zoom:1.8,ruined:true}
 ];
 
 function resize(){const r=canvas.getBoundingClientRect();H=720;W=clamp(720*r.width/r.height,320,2000);const d=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(r.width*d);canvas.height=Math.round(r.height*d);ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);ground=568;clearInput();syncCamera();}
@@ -73,7 +77,7 @@ function artFrame(rect,x,y,w,h,srcBorder=60,dstBorder=22){const [sx,sy,sw,sh]=re
 function panel(x,y,w,h){artFrame([47,148,791,585],x,y,w,h,65,22);}
 function ribbon(label,x,y,w=270){spriteRect('ribbon',x,y,w,72);let size=25;ctx.font=`700 ${size}px ${FONT_HEADING}`;while(size>16&&ctx.measureText(label).width>w*.74){size--;ctx.font=`700 ${size}px ${FONT_HEADING}`;}heading(label,x+w/2,y+28,size,'#49321e','center');}
 function button(label,x,y,w,h,fn,opt={}){if(opt.disabled)ctx.globalAlpha=.5;artFrame([921,330,818,225],x,y,w,h,60,18);heading(label,x+w/2,y+h/2,opt.size||25,opt.color||'#4b351e','center');ctx.globalAlpha=1;if(!opt.disabled)hits.push({x,y,w,h,fn,label});}
-function sprite(key,x,y,h,flip=false,alpha=1){if(s.avatar==='female')key=({hero:'femaleHero',walkA:'femaleWalkA',walkB:'femaleWalkB',attack:'femaleAttack'})[key]||key;const a=atlases[key];if(!a)return;const w=h*a.w/a.h;ctx.save();ctx.globalAlpha=alpha;ctx.translate(x,y);if(flip)ctx.scale(-1,1);source(a.img,a.x,a.y,a.w,a.h,-w/2,-h,w,h);ctx.restore();return w;}
+function sprite(key,x,y,h,flip=false,alpha=1){if(['hero','walkA','walkB','attack'].includes(key))return drawCharacter(key,x,y,h,flip,alpha);const a=atlases[key];if(!a)return;const w=h*a.w/a.h;ctx.save();ctx.globalAlpha=alpha;ctx.translate(x,y);if(flip)ctx.scale(-1,1);source(a.img,a.x,a.y,a.w,a.h,-w/2,-h,w,h);ctx.restore();return w;}
 function spriteRect(key,x,y,w,h){const a=atlases[key];if(a)source(a.img,a.x,a.y,a.w,a.h,x,y,w,h);}
 function control(key,x,y,size,fn,label,active=false){if(active)ctx.globalAlpha=.78;spriteRect(key,x-size/2,y-size/2,size,size);ctx.globalAlpha=1;if(label)outlined(label,x,y+size/2-4,21);hits.push({x:x-size/2-5,y:y-size/2-5,w:size+10,h:size+12,fn,label:label||key});}
 function veil(alpha=.57){ctx.fillStyle=`rgba(30,29,26,${alpha})`;ctx.fillRect(0,0,W,H);}
@@ -88,6 +92,24 @@ function buildAtlas(img,cols,rows,list,regions={}){
   for(let y=t;y<b;y++)for(let x=l;x<r;x++)if(data[(y*img.width+x)*4+3]>100){minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);}
   atlases[key]={img,x:minX,y:minY,w:Math.max(1,maxX-minX+1),h:Math.max(1,maxY-minY+1)};
  });
+}
+
+function attachCharacterAnchors(){
+ for(const [img,keys,head] of [[images.heads,Array.from({length:16},(_,i)=>`head-${i}`),true],[images.bodies,['body-hero','body-walkA','body-walkB','body-attack'],false]]){
+  const off=document.createElement('canvas');off.width=img.width;off.height=img.height;const c=off.getContext('2d',{willReadFrequently:true});c.drawImage(img,0,0);const data=c.getImageData(0,0,img.width,img.height).data;
+  for(const key of keys){const a=atlases[key],rows=[];for(let y=a.y;y<a.y+a.h;y++){let count=0,total=0;for(let x=a.x;x<a.x+a.w;x++)if(data[(y*img.width+x)*4+3]>100){count++;total+=x;}if(count>=12)rows.push({y,count,total});}
+   const edge=head?rows.slice(-4):rows.filter(r=>r.y<rows[0].y+15);a.pegX=edge.reduce((n,r)=>n+r.total,0)/edge.reduce((n,r)=>n+r.count,0);a.pegY=head?rows[rows.length-1].y:a.y+24;
+  }
+ }
+}
+function drawHead(hair,face,x,y,height=86){const a=atlases[`head-${hair*4+face}`];if(!a)return;const w=height*a.w/a.h;source(a.img,a.x,a.y,a.w,a.h,x-w/2,y-height,w,height);}
+function drawCharacter(pose,x,y,height,flip=false,alpha=1,hair=s.hair,face=s.face){
+ const body=atlases[`body-${pose}`],head=atlases[`head-${hair*4+face}`];if(!body||!head)return;
+ const scale=height/400,b=200/body.h,f=250/(images.heads.height/4),neckY=-200+(body.pegY-body.y)*b;
+ ctx.save();ctx.globalAlpha=alpha;ctx.translate(x,y);ctx.scale((flip?-1:1)*scale,scale);
+ source(body.img,body.x,body.y,body.w,body.h,(body.x-body.pegX)*b,-200,body.w*b,200);
+ source(head.img,head.x,head.y,head.w,head.h,(head.x-head.pegX)*f,neckY+(head.y-head.pegY)*f,head.w*f,head.h*f);
+ ctx.restore();return Math.max(body.w*b,head.w*f)*scale;
 }
 
 const platforms=[{x:3650,y:ground-90,w:240},{x:3950,y:ground-160,w:230}];
@@ -107,9 +129,9 @@ function openPortal(o=portalForQuest()){if(encounter||!o)return;clearInput();pla
 function enterPortal(){const o=modal?.type==='portal'?modal.portal:portalForQuest();if(!o||encounter||s.energy<5)return;encounter={quest:s.quest,returnX:o.x,cleared:false,exitX:180};player.x=330;player.y=ground;player.vx=0;player.vy=0;player.invincible=1.2;player.onGround=true;modal=null;clearInput();syncCamera();save();notify('포탈 안이야. 준비한 힘을 보여주자!',3);}
 function leaveArena(){if(!encounter)return;const back=encounter.returnX;encounter=null;modal=null;player.x=back;player.y=ground;player.vx=0;player.vy=0;player.onGround=true;player.invincible=1.2;pickups=[];floaters=[];effects=[];clearInput();syncCamera();save();notify(enemiesLeft()?'후우, 마을에서 다시 준비하자!':'해냈다! 부탁한 분께 돌아가자.',3);}
 function checkArenaClear(){if(encounter&&!encounter.cleared&&!enemiesLeft()){encounter.cleared=true;encounter.exitX=clamp(player.x+160,260,ARENA_WIDTH-150);notify('모두 처치했어! 황금 포탈로 돌아가자.',4);tone(880,.18);save();}}
-function syncNameInput(){nameInput.hidden=mode!=='create';if(nameInput.hidden)return;const r=canvas.getBoundingClientRect();Object.assign(nameInput.style,{left:`${(W/2-180)/W*100}%`,top:`${468/H*100}%`,width:`${360/W*100}%`,height:`${43/H*100}%`,fontSize:`${30*r.height/H}px`});}
-function chooseAvatar(value){s.avatar=value;profileError='';tone(540,.05);}
-function confirmCharacter(){if(!model.setProfile(s.avatar,nameInput.value)){profileError='이름을 적어줘! (최대 8글자)';return;}nameInput.blur();nameInput.hidden=true;clearInput();mode=s.introSeen?(s.finished?'ending':'play'):'intro';scene=0;sceneTime=0;syncCamera();save();}
+function syncNameInput(){nameInput.hidden=mode!=='create';if(nameInput.hidden)return;const r=canvas.getBoundingClientRect();Object.assign(nameInput.style,{left:`${(W/2-180)/W*100}%`,top:`${542/H*100}%`,width:`${360/W*100}%`,height:`${41/H*100}%`,fontSize:`${29*r.height/H}px`});}
+function chooseStyle(kind,value){if(!['hair','face'].includes(kind)||!Number.isInteger(value)||value<0||value>3)return;s[kind]=value;profileError='';tone(540,.05);}
+function confirmCharacter(){if(!model.setProfile(s.hair,s.face,nameInput.value)){profileError='이름을 적어줘! (최대 8글자)';return;}nameInput.blur();nameInput.hidden=true;clearInput();mode=s.introSeen?(s.finished?'ending':'play'):'intro';scene=0;sceneTime=0;syncCamera();save();}
 function say(role,art,lines,done){clearInput();modal={type:'dialog',role,art,lines:Array.isArray(lines)?lines:[lines],index:0,elapsed:0,done};announce(modal.lines[0]);}
 function nextDialog(){const m=modal;if(!m||m.type!=='dialog')return;if(!typingDone(m.lines[m.index],m.elapsed)){m.elapsed=(Array.from(m.lines[m.index]).length+1)/TYPE_SPEED;return;}if(++m.index<m.lines.length){m.elapsed=0;announce(m.lines[m.index]);}else{modal=null;m.done?.();save();}}
 function completeQuest(){const q=s.quest;if(!model.complete())return;save();tone(790,.15);notify(`부탁 완료! 경험치 +${QUESTS[q].reward}`,3);modal={type:'reward',q,elapsed:0,done:()=>{if(q===4){mode='ending';sceneTime=0;}else if(q===3){say('관측소 선생님','observer','큰 나무 앞에서 촌장님이 기다려요.');}}};clearInput();}
@@ -140,14 +162,14 @@ function attack(skill=false){if(mode!=='play'||modal||player.cooldown>0)return;i
 function jump(){if(mode==='play'&&!modal&&player.onGround){player.vy=-690;player.onGround=false;tone(520,.04);}}
 function hurt(){if(player.invincible>0)return;model.hurt();player.invincible=1.7;player.vx=-player.dir*130;tone(190,.12);floating('아야!',player.x,player.y-130,'#fff1d1');if(s.hp<=0){model.respawn();if(encounter)leaveArena();player.x=s.x;player.y=ground;syncCamera();player.vy=0;resetEnemies();say('쉼터 선생님','caretaker',['어머, 많이 놀랐지? 여기선 괜찮아.','한숨 돌렸으니 다시 준비해 보자!']);save();}}
 
-function start(newGame=false){encounter=null;if(newGame){model=new Adventure();s=model.s;s.sound=true;player={x:230,y:ground,vx:0,vy:0,dir:1,onGround:true,attack:0,cooldown:0,invincible:0};resetEnemies();}tone();clearInput();if(newGame||!s.profileReady){mode='create';profileError='';nameInput.value=s.playerName;nameInput.hidden=false;}else{mode=s.introSeen?(s.finished?'ending':'play'):'intro';scene=0;sceneTime=0;if(mode==='play')notify(`다시 만나서 반가워, ${s.playerName}!`,3);}syncCamera();}
+function start(newGame=false){encounter=null;if(newGame){model=new Adventure();s=model.s;s.sound=true;player={x:230,y:ground,vx:0,vy:0,dir:1,onGround:true,attack:0,cooldown:0,invincible:0};resetEnemies();}tone();clearInput();if(newGame||!s.profileReady||!s.appearanceReady){mode='create';profileError='';nameInput.value=s.playerName;nameInput.hidden=false;}else{mode=s.introSeen?(s.finished?'ending':'play'):'intro';scene=0;sceneTime=0;if(mode==='play')notify(`다시 만나서 반가워, ${s.playerName}!`,3);}syncCamera();}
 function finishIntro(){if(!s.profileReady){mode='create';return;}mode='play';s.introSeen=true;player.x=230;player.y=ground;s.x=230;syncCamera();save();notify('동그란 조이패드 또는 방향키로 이동',5);}
-function nextScene(){if(!typingDone(introText(),sceneTime)){sceneTime=(Array.from(introText()).length+1)/TYPE_SPEED;return;}if(++scene>=intro.length)finishIntro();else sceneTime=0;}
+function nextScene(){if(intro[scene].blackout)return;const elapsed=Math.max(0,sceneTime-introDelay());if(!typingDone(introText(),elapsed)){sceneTime=(Array.from(introText()).length+1)/TYPE_SPEED+introDelay();return;}advanceScene();}
 function goalForZone(x){if(x<1200)return '햇살 광장';if(x<2400)return '그늘 오솔길';if(x<3400)return '쉼터 창고길';if(x<4250)return '관측 언덕';return '큰 나무 숲';}
 
 function update(dt){time+=dt;autoSaveTime+=dt;if(toast){toast.t-=dt;toast.elapsed+=dt;if(toast.t<=0)toast=null;}floaters.forEach(f=>{f.t-=dt;f.y-=dt*35;});floaters=floaters.filter(f=>f.t>0);effects.forEach(e=>e.t-=dt);effects=effects.filter(e=>e.t>0);pickups.forEach(p=>p.elapsed+=dt);pickups=pickups.filter(p=>p.elapsed<p.duration);
  if(modal){modal.elapsed=(modal.elapsed||0)+dt;modal.feedbackElapsed=(modal.feedbackElapsed||0)+dt;}
- if(mode==='intro'){sceneTime+=dt;if(sceneTime>Math.max(5.5,Array.from(introText()).length/TYPE_SPEED+2.5))nextScene();return;}
+ if(mode==='intro'){sceneTime+=dt;if(intro[scene].blackout){if(sceneTime>=intro[scene].duration)advanceScene();}else if(sceneTime>Math.max(5.5,Array.from(introText()).length/TYPE_SPEED+introDelay()+2.5))nextScene();return;}
  if(mode!=='play'||modal||document.hidden||innerHeight>innerWidth)return;
  if(autoSaveTime>5){save();autoSaveTime=0;}
  player.attack=Math.max(0,player.attack-dt);player.cooldown=Math.max(0,player.cooldown-dt);player.invincible=Math.max(0,player.invincible-dt);
@@ -193,11 +215,25 @@ function drawControls(){const bx=108,by=H-104;const size=156;spriteRect('joyBase
  const n=nearby();if(n){control('interactButton',W/2,H-92,96,interact,n.kind==='npc'?'대화':['portal','exit'].includes(n.kind)?'포탈':'조사');}
  if(!s.accepted&&s.quest===0)outlined('방향키 / 조이패드로 촌장님에게!',W/2,H-28,22);
 }
-function drawCreate(){drawMap(.5,.5,1.05);veil(.22);const w=Math.min(900,W-60),x=(W-w)/2;panel(x,74,w,600);ribbon('나는 어떤 수호대일까?',W/2-215,44,430);heading('다섯 마을을 돕는 견습 수호대원!',W/2,145,28,'#4f6341','center');for(const [i,value] of ['female','male'].entries()){const bx=W/2-235+i*290,selected=s.avatar===value;panel(bx,181,180,219);sprite(value==='female'?'femaleHero':'maleHero',bx+90,355,128);text(selected?'선택했어!':'눌러서 선택',bx+90,211,20,selected?'#48733e':'#8b7356','center');heading(value==='female'?'여성형':'남성형',bx+90,376,25,'#49321e','center');hits.push({x:bx,y:181,w:180,h:219,fn:()=>chooseAvatar(value),label:value==='female'?'여성형 선택':'남성형 선택'});}text('나를 뭐라고 부르면 좋을까?',W/2,432,25,'#5b4530','center');panel(W/2-210,455,420,66);text(profileError||'이름은 8글자까지 쓸 수 있어.',W/2,545,21,profileError?'#a34d31':'#8a7150','center');button('이 모습으로 출발!',W/2-205,578,410,61,confirmCharacter,{size:29});button('돌아가기',x+24,93,125,42,()=>{nameInput.blur();mode='title';modal=null;},{size:20});}
+function drawCreate(){
+ drawMap(.5,.5,1.05);veil(.22);const w=Math.min(1120,W-40),x=(W-w)/2,leftW=clamp(w*.25,220,280),rightX=x+leftW+48,rightW=w-leftW-76,gap=12,cw=(rightW-gap*3)/4;
+ panel(x,30,w,670);ribbon('나만의 수호대원 만들기',W/2-220,5,440);text('머리 4가지 × 표정 4가지',W/2,99,25,'#596d47','center');
+ panel(x+24,143,leftW-12,345);heading('나의 수호대원',x+18+leftW/2,180,23,'#49321e','center');drawCharacter('hero',x+18+leftW/2,411,220+Math.sin(time*1.5)*1.2);text(HAIRSTYLES[s.hair],x+18+leftW/2,430,19,'#61754c','center');text(EXPRESSIONS[s.face],x+18+leftW/2,452,19,'#61754c','center');
+ for(const [kind,title,labels,by] of [['hair','헤어스타일',HAIRSTYLES,154],['face','표정',EXPRESSIONS,344]]){
+  heading(title,rightX,by-24,25);for(let i=0;i<4;i++){const bx=rightX+i*(cw+gap),selected=s[kind]===i;panel(bx,by,cw,150);drawHead(kind==='hair'?i:s.hair,kind==='face'?i:s.face,bx+cw/2,by+100,76);heading(labels[i],bx+cw/2,by+116,19,selected?'#4e723d':'#69513a','center');if(selected)ui(300,199,55,58,bx+cw-29,by+5,22,23);hits.push({x:bx,y:by,w:cw,h:150,fn:()=>chooseStyle(kind,i),label:`${title}: ${labels[i]}`});}
+ }
+ text('나를 뭐라고 부르면 좋을까?',W/2,515,24,'#5b4530','center');panel(W/2-210,533,420,56);text(profileError||'이름은 8글자까지 쓸 수 있어.',W/2,607,19,profileError?'#a34d31':'#8a7150','center');button('이 모습으로 출발!',W/2-205,627,410,52,confirmCharacter,{size:28});button('돌아가기',x+23,56,120,40,()=>{nameInput.blur();mode='title';modal=null;},{size:20});
+}
 function drawPortal(m){const w=Math.min(780,W-60),x=(W-w)/2,y=68;panel(x,y,w,584);ribbon('포탈 앞에서 준비하기',W/2-215,y-30,430);sprite('portal',x+135,y+275,188+Math.sin(time*1.6)*2);heading(m.portal.title,x+265,y+92,28);text(`남은 몬스터 ${enemiesLeft()}마리`,x+265,y+143,26);text(`체력 ${s.hp}/6  ·  기력 ${s.energy}/100`,x+265,y+193,24);text('준비되면 들어가자!',x+265,y+243,23,'#567249');button('잠깐 쉬기',x+45,y+312,(w-110)/2,59,()=>{s.hp=6;tone(650);save();},{size:26});button('문제로 기력 채우기',W/2+10,y+312,(w-110)/2,59,()=>{if(s.energy>=100){notify('기력이 가득해!',2);return;}modal=null;openQuiz(m);},{size:25});text('전투 중에도 마을로 돌아올 수 있어.',W/2,y+407,23,'#7d6549','center');button('아직이야',x+45,y+456,(w-110)/2,65,()=>modal=null,{size:27});button('준비됐어! 입장',W/2+10,y+456,(w-110)/2,65,enterPortal,{size:27,disabled:s.energy<5});}
 function drawTitle(){drawMap(.5,.5,1.05);veil(.2);const w=Math.min(680,W-80),x=(W-w)/2;panel(x,108,w,490);ribbon('그림으로 떠나는 기후 모험',W/2-215,82,430);heading('다섯 마을',W/2,223,54,'#42321e','center');heading('수호대',W/2,292,70,'#547049','center');text('첫 번째 모험 · 햇살마을',W/2,363,27,'#665037','center');button(saved?'처음부터 모험':'모험 시작',W/2-190,423,380,64,()=>{if(saved)modal={type:'restart'};else start(true);},{size:30});if(saved)button('이어하기',W/2-190,503,380,60,()=>start(false),{size:29});else text('터치 조이패드 · 방향키 모두 가능',W/2,530,23,'#6b593d','center');text('도입부 + 첫 마을   |   15~20분 목표',W/2,650,22,'#fff5d9','center');}
-function drawMap(cx=.5,cy=.5,z=1){const img=images.map;const factor=Math.max(W/img.width,H/img.height)*z;const w=img.width*factor,h=img.height*factor;const x=clamp(W/2-w*cx,W-w,0),y=clamp(H/2-h*cy,H-h,0);ctx.drawImage(img,x,y,w,h);}
-function drawIntro(){const a=intro[scene],caption=introText(),drift=Math.sin(sceneTime*.32)*.003;drawMap(a.at[0]+drift,a.at[1],a.zoom*(1+Math.min(sceneTime,6)*.004));if(a.hero){veil(.15);sprite('hero',W/2,H-205+Math.sin(time*1.4)*5,230);}if(a.dark){veil(.45);if(a.boss)sprite('boss',W/2,H-100,340);}if(a.stone){veil(.25);sprite('stone',W/2,H-210+Math.sin(time*1.4)*5,240);}if(a.chief){veil(.2);sprite('chief',W/2,H-210+Math.sin(time*1.4)*3,250);}const w=Math.min(W-80,970);panel((W-w)/2,H-168,w,120);typedParagraphs(caption,sceneTime,W/2,H-118,w-80,33,42,'#49321e','center');button('마을로 가기',W-180,22,155,48,finishIntro,{size:23});button(typingDone(caption,sceneTime)?'다음':'바로 보기',W-150,H-65,125,44,nextScene,{size:22});text(`${scene+1} / ${intro.length}`,W/2,H-27,20,'#fff3d3','center');}
+function drawMap(cx=.5,cy=.5,z=1,img=images.map){const factor=Math.max(W/img.width,H/img.height)*z;const w=img.width*factor,h=img.height*factor;const x=clamp(W/2-w*cx,W-w,0),y=clamp(H/2-h*cy,H-h,0);ctx.drawImage(img,x,y,w,h);}
+function drawIntro(){
+ const a=intro[scene];if(a.blackout){const before=intro[scene-1];drawMap(before.at[0]+Math.sin(transitionTime*.32)*.003,before.at[1],before.zoom*(1+Math.min(transitionTime,6)*.004));veil(.45);sprite('boss',W/2,H-100,340);const fade=clamp(sceneTime/.65,0,1),ease=fade*fade*(3-2*fade);ctx.fillStyle=`rgba(0,0,0,${ease})`;ctx.fillRect(0,0,W,H);return;}
+ const caption=introText(),drift=Math.sin(sceneTime*.32)*.003;drawMap(a.at[0]+drift,a.at[1],a.zoom*(1+Math.min(sceneTime,6)*.004),a.ruined?images.ruined:images.map);
+ if(a.hero){veil(.15);sprite('hero',W/2,H-205+Math.sin(time*1.4)*5,230);}if(a.dark){veil(.45);if(a.boss)sprite('boss',W/2,H-100,340);}if(a.stone){veil(.25);sprite('stone',W/2,H-210+Math.sin(time*1.4)*5,240);}if(a.chief){veil(.2);sprite('chief',W/2,H-210+Math.sin(time*1.4)*3,250);}
+ const w=Math.min(W-80,970),elapsed=Math.max(0,sceneTime-introDelay());panel((W-w)/2,H-168,w,120);typedParagraphs(caption,elapsed,W/2,H-118,w-80,33,42,'#49321e','center');button('마을로 가기',W-180,22,155,48,finishIntro,{size:23});button(typingDone(caption,elapsed)?'다음':'바로 보기',W-150,H-65,125,44,nextScene,{size:22});text(`${scene+1} / ${intro.length}`,W/2,H-27,20,'#fff3d3','center');
+ if(a.ruined&&sceneTime<.7){ctx.fillStyle=`rgba(0,0,0,${1-clamp(sceneTime/.7,0,1)})`;ctx.fillRect(0,0,W,H);}
+}
 function drawToast(){if(!toast)return;const width=Math.min(W-100,Math.max(300,toast.text.length*22));panel((W-width)/2,151,width,72);text(typed(toast.text,toast.elapsed),W/2,187,24,'#49321e','center');}
 function drawDialog(m){const w=Math.min(W-45,1110),x=(W-w)/2,y=H-207;panel(x,y,w,185);const portrait=atlases[m.art];const portraitHeight=portrait?Math.min(165,160*portrait.h/portrait.w):165;sprite(m.art,x+95,y+165,portraitHeight);ribbon(m.role,x+180,y-37,240);typedParagraphs(m.lines[m.index],m.elapsed,x+207,y+58,w-280,32,42);hits.push({x:x+190,y:y+18,w:w-215,h:96,fn:nextDialog,label:'대사 바로 보기 / 다음'});const ready=typingDone(m.lines[m.index],m.elapsed);button(!ready?'바로 보기':m.index<m.lines.length-1?'다음':'좋아요',x+w-165,y+124,142,47,nextDialog,{size:24});text('대사나 버튼을 눌러 넘겨요',x+207,y+145,19,'#846c4e');}
 function drawQuiz(m){const w=Math.min(790,W-70),h=590,x=(W-w)/2,y=62;panel(x,y,w,h);ribbon('문제로 기력 충전',W/2-175,y-32,350);sprite(m.question.art,x+92,y+177,105);typedParagraphs(m.question.q,m.elapsed,x+169,y+76,w-210,32,40,'#49321e','left',700);for(let i=0;i<3;i++){button(m.question.a[m.order[i]],x+55,y+210+i*80,w-110,65,()=>answerQuiz(i),{size:28,disabled:m.answered});}if(m.feedback){text(typed(m.feedback,m.feedbackElapsed),W/2,y+486,m.answered?32:23,m.answered?'#446842':'#9a4c2b','center');}if(m.answered)button('전투로 돌아가기',W/2-170,y+520,340,52,closeQuiz,{size:26});else{button('나중에',x+25,y+530,120,43,closeQuiz,{size:22});}}
@@ -207,7 +243,7 @@ function drawReward(m){const w=Math.min(720,W-60),x=(W-w)/2,y=105;panel(x,y,w,48
 function drawJournal(){const w=Math.min(800,W-70),x=(W-w)/2;panel(x,65,w,590);ribbon('모험 수첩',W/2-150,40,300);for(let i=0;i<5;i++){const done=s.completed.includes(i),y=158+i*80;text(`${done?'완료':i===s.quest?'진행':'잠김'}  ${i+1}. ${QUESTS[i].title}`,x+40,y,25,done?'#527045':'#6a4b30');if(done)text(QUESTS[i].fact,x+65,y+32,22,'#786443');}button('닫기',W/2-100,577,200,55,()=>modal=null,{size:26});}
 function drawMenu(){const w=Math.min(660,W-80),x=(W-w)/2;panel(x,90,w,535);ribbon('잠깐 쉬어가기',W/2-170,65,340);text('이동  ← → / A D',W/2,193,27,'#49321e','center');text('점프  Space   공격  Z   스킬  X',W/2,239,25,'#49321e','center');text('대화·조사  E   기력 충전  Q',W/2,284,25,'#49321e','center');button(s.sound?'효과음 끄기':'효과음 켜기',W/2-190,328,380,59,()=>{s.sound=!s.sound;save();},{size:25});button('저장하고 계속',W/2-190,407,380,59,()=>{save();modal=null;notify('이 기기에 저장했어요.');},{size:27});button('처음 화면',W/2-190,486,380,59,()=>{save();modal=null;mode='title';saved={...s};},{size:26});text('진행은 이 브라우저에 자동 저장돼요.',W/2,587,21,'#7b664b','center');}
 function drawRestart(){const w=Math.min(670,W-60),x=(W-w)/2;panel(x,200,w,310);paragraphs('이 기기의 저장을 지우고\n새로 시작할까요?',W/2,270,w-70,32,45,'#49321e','center');button('돌아가기',W/2-250,400,225,62,()=>modal=null,{size:27});button('새로 시작',W/2+25,400,225,62,()=>{modal=null;start(true);},{size:27});}
-function drawEnding(){drawBackground();veil(.2);const w=Math.min(800,W-65),x=(W-w)/2;panel(x,62,w,595);ribbon('햇살마을을 되찾았어요!',W/2-235,35,470);sprite('stone',W/2,300,168);heading('첫 번째 수호석 획득',W/2,343,34,'#486344','center');text('그늘에서 쉬기 · 물 마시기 · 도움받기',W/2,397,27,'#57432c','center');text('다음 편지: 온샘마을에 한파가 찾아왔대요.',W/2,460,24,'#57432c','center');button('마을 더 둘러보기',W/2-215,515,430,65,()=>{mode='play';player.x=2400;syncCamera();modal=null;save();},{size:28});text('이번 버전은 햇살마을까지 플레이할 수 있어요.',W/2,620,20,'#796449','center');}
+function drawEnding(){drawBackground();veil(.2);const w=Math.min(800,W-65),x=(W-w)/2;panel(x,62,w,595);ribbon('햇살마을을 되찾았어요!',W/2-235,35,470);sprite('stone',W/2,300,168);heading('첫 번째 수호석 획득',W/2,343,34,'#486344','center');text('그늘에서 쉬기 · 물 마시기 · 도움받기',W/2,397,27,'#57432c','center');text('다음 편지: 온샘마을 장터가 얼어붙었대요.',W/2,460,24,'#57432c','center');button('마을 더 둘러보기',W/2-215,515,430,65,()=>{mode='play';player.x=2400;syncCamera();modal=null;save();},{size:28});text('이번 버전은 햇살마을까지 플레이할 수 있어요.',W/2,620,20,'#796449','center');}
 function render(){syncNameInput();ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);ctx.clearRect(0,0,W,H);hits=[];if(mode==='loading')return;if(mode==='title')drawTitle();else if(mode==='create')drawCreate();else if(mode==='intro')drawIntro();else if(mode==='ending')drawEnding();else{drawWorld();drawHUD();if(!modal)drawControls();drawToast();}if(modal){hits=[];if(modal.type!=='dialog')veil(.55);if(modal.type==='portal')drawPortal(modal);if(modal.type==='dialog')drawDialog(modal);if(modal.type==='quiz')drawQuiz(modal);if(modal.type==='graph')drawGraph(modal);if(modal.type==='plans')drawPlans(modal);if(modal.type==='reward')drawReward(modal);if(modal.type==='journal')drawJournal();if(modal.type==='menu')drawMenu();if(modal.type==='restart')drawRestart();}}
 function frame(now){const dt=Math.min((now-lastTime)/1000||0,.04);lastTime=now;update(dt);render();requestAnimationFrame(frame);}
 
@@ -224,5 +260,6 @@ async function load(){const fontReady=document.fonts?Promise.all([
  document.fonts.load('700 28px "NEXON Lv1 Gothic"','가나다 ABC 123'),
  document.fonts.load('400 28px "NEXON Lv2 Gothic"','가나다 ABC 123'),
  document.fonts.load('700 28px "NEXON Lv2 Gothic"','가나다 ABC 123')
-]).catch(error=>console.warn('Using fallback fonts:',error)):Promise.resolve();const files={ui:'ui.png',bg:'village-bg.png',map:'world-map.png',sprites:'sprites.png',controls:'controls.png',frames:'frames.png',actions:'actions.png',ribbon:'ribbon.png',adventurers:'adventurers-portals.png',arena:'portal-forest.png'};let n=0;await Promise.all(Object.entries(files).map(([key,file])=>new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>{images[key]=img;document.querySelector('#load-progress').value=++n/Object.keys(files).length*100;resolve();};img.onerror=()=>reject(new Error(file));img.src=`assets/${file}`;})));await fontReady;buildAtlas(images.ribbon,1,1,['ribbon']);buildAtlas(images.sprites,4,4,names);atlases.maleHero=atlases.hero;buildAtlas(images.adventurers,2,3,['femaleHero','femaleWalkA','femaleWalkB','femaleAttack','portal','returnPortal'],{femaleHero:[0,0,627,400],femaleWalkA:[627,0,627,400],femaleWalkB:[0,400,627,390],femaleAttack:[627,400,627,390],portal:[0,790,627,464],returnPortal:[627,790,627,464]});buildAtlas(images.controls,3,2,controlNames);buildAtlas(images.actions,3,2,['shadeAction','drinkAction','helpAction','runAction','refuseAction','endureAction']);resize();document.querySelector('#loading').remove();mode='title';requestAnimationFrame(frame);}
+]).catch(error=>console.warn('Using fallback fonts:',error)):Promise.resolve();const files={ui:'ui.png',bg:'village-bg.png',map:'world-map.png',sprites:'sprites.png',controls:'controls.png',frames:'frames.png',actions:'actions.png',ribbon:'ribbon.png',adventurers:'adventurers-portals.png',arena:'portal-forest.png',heads:'character-heads.png',bodies:'character-bodies.png',ruined:'ruined-map.png'};let n=0;await Promise.all(Object.entries(files).map(([key,file])=>new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>{images[key]=img;document.querySelector('#load-progress').value=++n/Object.keys(files).length*100;resolve();};img.onerror=()=>reject(new Error(file));img.src=`assets/${file}`;})));await fontReady;buildAtlas(images.ribbon,1,1,['ribbon']);buildAtlas(images.sprites,4,4,names);buildAtlas(images.adventurers,2,3,['unused-0','unused-1','unused-2','unused-3','portal','returnPortal'],{portal:[0,790,627,464],returnPortal:[627,790,627,464]});
+ buildAtlas(images.heads,4,4,Array.from({length:16},(_,i)=>`head-${i}`));buildAtlas(images.bodies,4,1,['body-hero','body-walkA','body-walkB','body-attack'],{'body-walkB':[1086,0,500,724],'body-attack':[1586,0,586,724]});attachCharacterAnchors();buildAtlas(images.controls,3,2,controlNames);buildAtlas(images.actions,3,2,['shadeAction','drinkAction','helpAction','runAction','refuseAction','endureAction']);resize();document.querySelector('#loading').remove();mode='title';requestAnimationFrame(frame);}
 load().catch(e=>{document.querySelector('#loading span').textContent='그림을 불러오지 못했어요. 새로고침해 주세요.';console.error('Asset load failed:',e);});

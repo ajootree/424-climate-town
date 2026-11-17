@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import {createHash} from 'node:crypto';
 import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {createCanvas,Image,GlobalFonts} from '@napi-rs/canvas';
@@ -18,8 +19,8 @@ async function engine(){
  const document={hidden:false,querySelector:n=>nodes[n]??=( {textContent:'',value:'',hidden:true,style:{},blur(){},remove(){},addEventListener(){}}),addEventListener:(n,f)=>events[n]=f,createElement:()=>createCanvas(1,1)};
  class LocalImage extends Image{set src(value){super.src=readFileSync(root+'/'+value);}get src(){return super.src;}}
  const context={CORE,console,document,innerWidth:1280,innerHeight:720,devicePixelRatio:1,localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},Image:LocalImage,requestAnimationFrame:f=>context.nextFrame=f,addEventListener:(n,f)=>events[n]=f,setTimeout,clearTimeout};context.window=context;vm.createContext(context);
- let src=readFileSync(root+'/game.js','utf8').replace(/^import .*?;\n/,'const {Adventure, QUESTS, QUESTIONS, clamp}=CORE;\n');
- src+='\nglobalThis.qa={get s(){return s},get player(){return player},get mode(){return mode},get modal(){return modal},get enemies(){return enemies},get hits(){return hits},get stick(){return stick},get encounter(){return encounter},activeEnemies,portalForQuest,openPortal,enterPortal,leaveArena,chooseAvatar,confirmCharacter,get cam(){return cam},get pickups(){return pickups},get toast(){return toast},typed,typingDone,syncCamera,get W(){return W},get H(){return H},start,finishIntro,nextDialog,interact,attack,jump,openQuiz,answerQuiz,closeQuiz,chooseGraph,choosePlan,render,resize,update,save};';
+ let src=readFileSync(root+'/game.js','utf8').replace(/^import .*?;\n/,'const {Adventure, QUESTS, QUESTIONS, HAIRSTYLES, EXPRESSIONS, clamp}=CORE;\n');
+ src+='\nglobalThis.qa={get s(){return s},get player(){return player},get mode(){return mode},get modal(){return modal},get enemies(){return enemies},get hits(){return hits},get stick(){return stick},get encounter(){return encounter},activeEnemies,portalForQuest,openPortal,enterPortal,leaveArena,chooseStyle,confirmCharacter,drawCharacter,drawHead,nextScene,introText,get intro(){return intro},get scene(){return scene},get sceneTime(){return sceneTime},get cam(){return cam},get pickups(){return pickups},get toast(){return toast},typed,typingDone,syncCamera,get W(){return W},get H(){return H},start,finishIntro,nextDialog,interact,attack,jump,openQuiz,answerQuiz,closeQuiz,chooseGraph,choosePlan,render,resize,update,save};';
  vm.runInContext(src,context,{filename:'game.js'});
  for(let i=0;i<100&&context.qa.mode==='loading';i++)await new Promise(r=>setTimeout(r,10));
  assert.equal(context.qa.mode,'title','all generated image assets load and atlas slices compile');
@@ -28,7 +29,7 @@ async function engine(){
  function key(code,hold=.04){events.keydown({code,repeat:false,preventDefault(){}});tick(hold);events.keyup({code});}
  function pointer(n,id,x,y){canvasEvents[n]({pointerId:id,clientX:x,clientY:y,preventDefault(){}});}
  function snapshot(name,w=1280,h=720){box.width=w;box.height=h;context.innerWidth=w;context.innerHeight=h;q.resize();q.render();mkdirSync(root+'/qa',{recursive:true});writeFileSync(root+'/qa/'+name+'.png',realCanvas.toBuffer('image/png'));}
- function createProfile(name='별이',avatar='female'){q.chooseAvatar(avatar);nodes['#player-name'].value=name;q.confirmCharacter();}
+ function createProfile(name='별이',hair=3,face=0){q.chooseStyle('hair',hair);q.chooseStyle('face',face);nodes['#player-name'].value=name;q.confirmCharacter();}
  function closeDialog(){while(q.modal?.type==='dialog')q.nextDialog();}
  function closeReward(){assert.equal(q.modal?.type,'reward');const done=q.modal.done;vm.runInContext('modal=null',context);done?.();q.render();}
  return {q,tick,key,pointer,snapshot,createProfile,closeDialog,closeReward,context,box,realCanvas,events,storage,nodes};
@@ -36,7 +37,7 @@ async function engine(){
 
 test('생성 이미지 렌더링·키보드·조이패드·퀘스트 5개와 엔딩까지 실행한다',async()=>{
  const e=await engine(),{q,tick,key,pointer,snapshot,createProfile,closeDialog,closeReward}=e;
- snapshot('01-title-tablet',1024,768);snapshot('01-title-phone',932,430);snapshot('01-title',1280,720);q.start(true);assert.equal(q.mode,'create');snapshot('22-create-tablet',1024,768);snapshot('23-create-phone',932,430);snapshot('24-create-desktop',1280,720);createProfile();assert.equal(q.s.avatar,'female');assert.equal(q.s.playerName,'별이');assert.equal(q.mode,'intro');q.render();snapshot('02-intro');q.finishIntro();q.render();snapshot('03-village-desktop');snapshot('04-village-tablet',1024,768);snapshot('05-village-phone',932,430);snapshot('06-village-desktop',1280,720);
+ snapshot('01-title-tablet',1024,768);snapshot('01-title-phone',932,430);snapshot('01-title',1280,720);q.start(true);assert.equal(q.mode,'create');snapshot('22-create-tablet',1024,768);snapshot('23-create-phone',932,430);snapshot('24-create-desktop',1280,720);createProfile();assert.equal(q.s.hair,3);assert.equal(q.s.playerName,'별이');assert.equal(q.mode,'intro');q.render();snapshot('02-intro');q.finishIntro();q.render();snapshot('03-village-desktop');snapshot('04-village-tablet',1024,768);snapshot('05-village-phone',932,430);snapshot('06-village-desktop',1280,720);
  const old=q.player.x;key('ArrowRight',.25);assert.ok(q.player.x>old+45);key('ArrowLeft',.25);assert.ok(Math.abs(q.player.x-old)<5);
  pointer('pointerdown',1,155,616);tick(.25);assert.ok(q.player.x>old+40);pointer('pointerup',1,155,616);assert.equal(q.stick.x,0);
  const beforeTouch=q.player.x,beforeEnergy=q.s.energy;pointer('pointerdown',2,155,616);pointer('pointerdown',3,1180,616);tick(.5);assert.ok(q.player.x>beforeTouch+80,'two touch contacts support moving and attacking together');assert.ok(q.s.energy<beforeEnergy,'touch attack consumes energy');pointer('pointerup',2,155,616);pointer('pointerup',3,1180,616);
@@ -66,7 +67,7 @@ test('생성 이미지 렌더링·키보드·조이패드·퀘스트 5개와 엔
 
 test('대사 바로 표시·카메라 정지·획득 연출과 퀘스트 여백을 확인한다',async()=>{
  const e=await engine(),{q,tick,key,snapshot,createProfile,closeDialog}=e;
- q.start(true);createProfile('도담','male');q.finishIntro();q.player.x=320;q.interact();
+ q.start(true);createProfile('도담',0,0);q.finishIntro();q.player.x=320;q.interact();
  assert.equal(q.modal.elapsed,0);assert.equal(q.typed(q.modal.lines[0],q.modal.elapsed),'');
  tick(.12);assert.ok(q.typed(q.modal.lines[0],q.modal.elapsed).length>0);assert.ok(!q.typingDone(q.modal.lines[0],q.modal.elapsed));
  q.nextDialog();assert.equal(q.modal.index,0,'first tap reveals the current line');assert.ok(q.typingDone(q.modal.lines[0],q.modal.elapsed));
@@ -88,7 +89,7 @@ test('대사 바로 표시·카메라 정지·획득 연출과 퀘스트 여백�
 test('기존 저장을 보존해 캐릭터를 만들고 포탈에서 준비·퇴각·재입장한다',async()=>{
  const e=await engine(),{q,tick,createProfile,closeDialog,context,nodes,snapshot}=e;
  q.start(true);q.confirmCharacter();assert.equal(q.mode,'create','empty name cannot enter the story');
- createProfile('  새봄  ','female');assert.equal(q.s.playerName,'새봄');q.finishIntro();
+ createProfile('  새봄  ',3,0);assert.equal(q.s.playerName,'새봄');q.finishIntro();
  q.s.quest=1;q.s.accepted=true;q.s.learned=1;q.player.x=1265;q.s.hp=2;q.s.energy=0;q.syncCamera();q.interact();assert.equal(q.modal.type,'portal');
  q.enterPortal();assert.equal(q.encounter,null,'empty energy keeps the player in preparation');
  q.render();q.hits.find(h=>h.label==='잠깐 쉬기').fn();assert.equal(q.s.hp,6);
@@ -99,9 +100,33 @@ test('기존 저장을 보존해 캐릭터를 만들고 포탈에서 준비·퇴
  q.leaveArena();assert.equal(q.player.x,1265);assert.equal(q.activeEnemies().length,0);assert.equal(q.s.killed.length,1);
  q.interact();q.enterPortal();assert.equal(q.activeEnemies().filter(e=>e.hp>0).length,3,'retreat preserves defeated monsters');
  snapshot('27-female-arena-phone',932,430);q.leaveArena();q.save();
- const restored=new CORE.Adventure(JSON.parse(e.storage.get('five-villages-sun-v1')));assert.equal(restored.s.playerName,'새봄');assert.equal(restored.s.avatar,'female');assert.equal(restored.s.x,1265);assert.equal(restored.s.killed.length,1);
+ const restored=new CORE.Adventure(JSON.parse(e.storage.get('five-villages-sun-v1')));assert.equal(restored.s.playerName,'새봄');assert.equal(restored.s.hair,3);assert.equal(restored.s.x,1265);assert.equal(restored.s.killed.length,1);
  const old=new CORE.Adventure({version:1,quest:3,accepted:true,introSeen:true,x:3600,records:['record-0']});assert.equal(old.s.profileReady,false);assert.equal(old.s.quest,3);assert.deepEqual(old.s.records,['record-0']);
  // Migration passes through the same creation screen, then resumes the existing quest.
  vm.runInContext('model=new Adventure({version:1,quest:3,accepted:true,introSeen:true,x:3600,records:["record-0"]});s=model.s;player.x=s.x;',context);
- q.start(false);assert.equal(q.mode,'create');createProfile('기록이','male');assert.equal(q.mode,'play');assert.equal(q.s.quest,3);assert.equal(q.player.x,3600);assert.equal(q.s.records.length,1);
+ q.start(false);assert.equal(q.mode,'create');createProfile('기록이',0,0);assert.equal(q.mode,'play');assert.equal(q.s.quest,3);assert.equal(q.player.x,3600);assert.equal(q.s.records.length,1);
+});
+
+
+test('시작창의 헤어 4개와 표정 4개가 16가지 다른 실제 캐릭터를 만든다',async()=>{
+ const e=await engine(),{q,snapshot,realCanvas,createProfile}=e;q.start(true);q.render();
+ assert.equal(q.hits.filter(h=>h.label.startsWith('헤어스타일:')).length,4);assert.equal(q.hits.filter(h=>h.label.startsWith('표정:')).length,4);assert.ok(!q.hits.some(h=>/여성형|남성형/.test(h.label)));
+ q.hits.find(h=>h.label==='헤어스타일: 일자 단발').fn();q.render();q.hits.find(h=>h.label==='표정: 호기심').fn();assert.equal(q.s.hair,1);assert.equal(q.s.face,2);
+ snapshot('33-custom-create-tablet',1024,768);snapshot('34-custom-create-phone',932,430);snapshot('35-custom-create-desktop',1280,720);
+ const ctx=realCanvas.getContext('2d');ctx.fillStyle='#e7d7b7';ctx.fillRect(0,0,1280,720);const hashes=new Set();
+ for(let hair=0;hair<4;hair++)for(let face=0;face<4;face++){const x=face*320,y=hair*180;q.drawCharacter('hero',x+160,y+165,155,false,1,hair,face);hashes.add(createHash('sha256').update(ctx.getImageData(x,y,320,180).data).digest('hex'));}
+ assert.equal(hashes.size,16,'actual generated sprite pixels differ for every hair/expression pair');writeFileSync(root+'/qa/36-custom-sixteen.png',realCanvas.toBuffer('image/png'));
+ ctx.fillStyle='#e7d7b7';ctx.fillRect(0,0,1280,720);for(let hair=0;hair<4;hair++)for(const [col,pose] of ['hero','walkA','walkB','attack'].entries())q.drawCharacter(pose,col*320+145,hair*180+165,155,false,1,hair,hair);writeFileSync(root+'/qa/37-custom-poses.png',realCanvas.toBuffer('image/png'));
+ createProfile('별빛',1,2);q.finishIntro();q.save();const restored=new CORE.Adventure(JSON.parse(e.storage.get('five-villages-sun-v1')));assert.equal(restored.s.hair,1);assert.equal(restored.s.face,2);assert.equal(restored.s.playerName,'별빛');assert.equal(restored.s.appearanceReady,true);
+});
+
+test('저주 뒤 암전과 황폐한 삽화를 보여주고 재해 이름을 도입에서 미리 말하지 않는다',async()=>{
+ const e=await engine(),{q,tick,createProfile,snapshot,realCanvas}=e;q.start(true);createProfile();
+ assert.ok(q.intro.every(s=>!/(폭염|한파|가뭄|홍수|폭설)/.test(s.text||'')));
+ const curse=q.intro.findIndex(s=>(s.text||'').includes('저주가 퍼졌어요'));
+ while(q.scene<curse){q.nextScene();if(q.scene<curse&&!q.typingDone(q.introText(),q.sceneTime))q.nextScene();}
+ assert.equal(q.scene,curse);tick(2);snapshot('38-intro-curse');q.nextScene();assert.ok(q.intro[q.scene].blackout);tick(.82);const blackScene=q.scene;snapshot('39-intro-blackout');
+ const ctx=realCanvas.getContext('2d');for(const [x,y] of [[20,20],[640,360],[1250,690]])assert.deepEqual(Array.from(ctx.getImageData(x,y,1,1).data),[0,0,0,255]);
+ q.nextScene();assert.equal(q.scene,blackScene,'taps do not skip the brief blackout');tick(.5);assert.ok(q.intro[q.scene].ruined);tick(1);snapshot('40-intro-ruins');
+ assert.equal(q.introText(),'다음 날, 마을의 모습이 달라졌어요.');const pixel=Array.from(ctx.getImageData(640,300,1,1).data);assert.ok(pixel[0]+pixel[1]+pixel[2]>0,'the new ruined illustration fades into view');
 });
