@@ -31,12 +31,13 @@ test('지원하지 않는 저장 버전은 안전하게 새 게임으로 시작�
 });
 
 
-test('헤어·표정 16가지 조합과 이름을 저장하고 이전 캐릭터를 이전한다',()=>{
+test('헤어·머리색 16가지 조합과 이름을 저장하고 이전 캐릭터를 이전한다',()=>{
  const g=new Adventure({version:1,quest:2,accepted:true,supplies:['water'],avatar:'female',playerName:'새봄',profileReady:true});assert.equal(g.s.appearanceReady,false);assert.equal(g.s.hair,3);assert.equal(g.s.profileReady,true);
  assert.equal(g.setProfile(0,0,'   '),false);for(const pair of [[4,0],[-1,0],[0,4],[0,1.5]])assert.equal(g.setProfile(...pair,'새봄'),false);
- for(let hair=0;hair<4;hair++)for(let face=0;face<4;face++){assert.ok(g.setProfile(hair,face,'  새봄  '));const r=new Adventure(JSON.parse(g.serialize()));assert.equal(r.s.hair,hair);assert.equal(r.s.face,face);assert.equal(r.s.playerName,'새봄');assert.equal(r.s.appearanceReady,true);assert.equal(r.s.quest,2);assert.deepEqual(r.s.supplies,['water']);assert.ok(!('avatar'in r.s));}
+ for(let hair=0;hair<4;hair++)for(let color=0;color<4;color++){assert.ok(g.setProfile(hair,color,'  새봄  '));const r=new Adventure(JSON.parse(g.serialize()));assert.equal(r.s.hair,hair);assert.equal(r.s.color,color);assert.equal(r.s.playerName,'새봄');assert.equal(r.s.appearanceReady,true);assert.equal(r.s.quest,2);assert.deepEqual(r.s.supplies,['water']);assert.ok(!('avatar'in r.s));assert.ok(!('face'in r.s));assert.equal(r.s.styleVersion,2);}
  g.setProfile(0,0,'하나둘셋넷다섯여섯일곱');assert.equal(Array.from(g.s.playerName).length,8);
- const bad=new Adventure({version:1,hair:99,face:-1});assert.equal(bad.s.hair,0);assert.equal(bad.s.face,0);
+ const old=new Adventure({version:1,hair:2,face:3,quest:3,playerName:'기록이',profileReady:true,appearanceReady:true});assert.equal(old.s.color,0);assert.equal(old.s.styleVersion,0);assert.equal(old.s.quest,3);assert.ok(!('face'in old.s));
+ const bad=new Adventure({version:1,hair:99,color:-1});assert.equal(bad.s.hair,0);assert.equal(bad.s.color,0);
 });
 
 

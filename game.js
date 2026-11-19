@@ -1,4 +1,4 @@
-import {Adventure, QUESTS, QUESTIONS, HAIRSTYLES, EXPRESSIONS, LESSONS, FINAL_TEST, REVIEW_TEST, ENERGY, clamp} from './core.js?v=touch-5';
+import {Adventure, QUESTS, QUESTIONS, HAIRSTYLES, HAIR_COLORS, LESSONS, FINAL_TEST, REVIEW_TEST, ENERGY, clamp} from './core.js?v=moods-6';
 
 const canvas=document.querySelector('#game'),ctx=canvas.getContext('2d',{alpha:false});
 const SAVE_KEY='five-villages-sun-v1';
@@ -14,7 +14,19 @@ let audioContext=null,autoSaveTime=0,interactionHint=null;
 const images={},atlases={};
 const MOVE_SPEED=190,TYPE_SPEED=22;
 const ARENA_WIDTH=2200;
-let encounter=null,profileError='';
+let encounter=null,profileError='',emotion={face:0,t:0};
+function react(face,duration=1.2){emotion={face,t:duration};}
+function expressionFor(pose='hero'){
+ if(mode==='create')return 0;
+ if(mode==='ending'||modal?.type==='reward')return 1;
+ if(modal?.type==='testReport')return model.testGaps().length?2:1;
+ if(['quiz','practice','test','review'].includes(modal?.type))return modal.answered&&(modal.type==='quiz'||modal.correct)?1:2;
+ if(emotion.t>0&&emotion.face===2)return 2;
+ if(pose==='attack'||player.attack>0)return 3;
+ if(emotion.t>0)return emotion.face;
+ if(mode==='intro'&&(intro[scene].blackout||intro[scene].ruined))return 2;
+ return 0;
+}
 const nameInput=document.querySelector('#player-name');
 const MISSIONS={
  1:{npc:'courier',role:'배달원',title:'먼지 몬스터의 소굴',enemy:'dust',count:4,x:1265},
@@ -60,7 +72,7 @@ function announce(t){document.querySelector('#live').textContent=t;}
 function tone(freq=600,duration=.08){if(!s.sound)return;try{audioContext??=new AudioContext();audioContext.resume();const o=audioContext.createOscillator(),g=audioContext.createGain();o.type='sine';o.frequency.value=freq;g.gain.setValueAtTime(.035,audioContext.currentTime);g.gain.exponentialRampToValueAtTime(.001,audioContext.currentTime+duration);o.connect(g);g.connect(audioContext.destination);o.start();o.stop(audioContext.currentTime+duration);}catch{}}
 function notify(t,seconds=2.5){toast={text:t,t:Math.max(seconds,Array.from(t).length/TYPE_SPEED+1.5),elapsed:0};announce(t);}
 function floating(t,x,y,color='#fff5d0'){floaters.push({text:t,x,y,t:1.2,color});}
-function pickup(o){pickups.push({art:o.art,x:o.x,y:o.y-12,elapsed:0,duration:1.15});floating(`${o.name} +1`,o.x,o.y-100);tone(760,.09);}
+function pickup(o){react(1);pickups.push({art:o.art,x:o.x,y:o.y-12,elapsed:0,duration:1.15});floating(`${o.name} +1`,o.x,o.y-100);tone(760,.09);}
 function drawGlints(x,y,elapsed,alpha=1){for(let i=0;i<5;i++){const phase=clamp((elapsed-i*.045)/.7,0,1),angle=i*Math.PI*2/5-.7,r=20+phase*48,size=8+Math.sin(phase*Math.PI)*10;ctx.save();ctx.globalAlpha=alpha*Math.sin(phase*Math.PI);ui(300,199,55,58,x+Math.cos(angle)*r-size/2,y+Math.sin(angle)*r-size/2,size,size);ctx.restore();}}
 function clearInput(){keys.clear();held.clear();pointerActions.clear();stick={id:null,x:0,y:0};}
 function text(t,x,y,size=26,color='#49321e',align='left',weight=500,family=FONT_BODY){ctx.font=`${weight} ${size}px ${family}`;ctx.fillStyle=color;ctx.textAlign=align;ctx.textBaseline='middle';ctx.fillText(t,x,y);}
@@ -95,14 +107,20 @@ function buildAtlas(img,cols,rows,list,regions={}){
 }
 
 function attachCharacterAnchors(){
- const img=images.heads,off=document.createElement('canvas');off.width=img.width;off.height=img.height;const c=off.getContext('2d',{willReadFrequently:true});c.drawImage(img,0,0);const data=c.getImageData(0,0,img.width,img.height).data;
- for(let i=0;i<16;i++){const a=atlases[`head-${i}`],rows=[];for(let y=Math.floor(a.y+a.h*.8);y<a.y+a.h;y++){let count=0,total=0;for(let x=a.x;x<a.x+a.w;x++){const p=(y*img.width+x)*4,[r,g,b,alpha]=data.slice(p,p+4);if(alpha>100&&r>210&&g>140&&g<230&&b>85&&r-g>20&&g-b>15){count++;total+=x;}}if(count>=5)rows.push({y,count,total});}const edge=rows.slice(-4);a.pegX=edge.reduce((n,r)=>n+r.total,0)/edge.reduce((n,r)=>n+r.count,0);a.pegY=rows[rows.length-1].y;}
+ for(let color=0;color<4;color++){
+  const img=images[['heads','headsBlack','headsGold','headsBlue'][color]],off=document.createElement('canvas');off.width=img.width;off.height=img.height;const c=off.getContext('2d',{willReadFrequently:true});c.drawImage(img,0,0);const data=c.getImageData(0,0,img.width,img.height).data;
+  for(let i=0;i<16;i++){
+   const a=atlases[`head-${color}-${i}`],base=atlases[`head-0-${i}`],ratio=img.width/images.heads.width,center=color?base.pegX*ratio:a.x+a.w*.55,rows=[];
+   for(let y=Math.floor(a.y+a.h*.8);y<a.y+a.h;y++){let count=0,total=0;for(let x=Math.max(a.x,Math.floor(center-25*ratio));x<Math.min(a.x+a.w,center+25*ratio);x++){const p=(y*img.width+x)*4,[r,g,b,alpha]=data.slice(p,p+4);if(alpha>100&&r>210&&g>140&&g<230&&b>115&&r-g>20&&g-b>15){count++;total+=x;}}if(count>=5)rows.push({y,count,total});}
+   const edge=rows.slice(-4);a.pegX=edge.length?edge.reduce((n,r)=>n+r.total,0)/edge.reduce((n,r)=>n+r.count,0):center;a.pegY=rows.length?rows[rows.length-1].y:base.pegY*ratio;
+  }
+ }
  const collarCenters=[306.6,820.3,1329.4,1840.5];for(const [i,key] of ['body-hero','body-walkA','body-walkB','body-attack'].entries()){const a=atlases[key];a.pegX=collarCenters[i];a.pegY=a.y+12;}
 }
-function drawHead(hair,face,x,y,height=86){const a=atlases[`head-${hair*4+face}`];if(!a)return;const w=height*a.w/a.h;source(a.img,a.x,a.y,a.w,a.h,x-w/2,y-height,w,height);}
-function drawCharacter(pose,x,y,height,flip=false,alpha=1,hair=s.hair,face=s.face){
- const body=atlases[`body-${pose}`],head=atlases[`head-${hair*4+face}`];if(!body||!head)return;
- const scale=height/400,b=200/body.h,f=250/(images.heads.height/4),neckY=-200+(body.pegY-body.y)*b;
+function drawHead(hair,color,x,y,height=86,face=0){const a=atlases[`head-${color}-${hair*4+face}`];if(!a)return;const w=height*a.w/a.h;source(a.img,a.x,a.y,a.w,a.h,x-w/2,y-height,w,height);}
+function drawCharacter(pose,x,y,height,flip=false,alpha=1,hair=s.hair,color=s.color,face=expressionFor(pose)){
+ const body=atlases[`body-${pose}`],head=atlases[`head-${color}-${hair*4+face}`];if(!body||!head)return;
+ const scale=height/400,b=200/body.h,f=250/(head.img.height/4),neckY=-200+(body.pegY-body.y)*b;
  ctx.save();ctx.globalAlpha=alpha;ctx.translate(x,y);ctx.scale((flip?-1:1)*scale,scale);
  source(head.img,head.x,head.y,head.w,head.h,(head.x-head.pegX)*f,neckY+(head.y-head.pegY)*f,head.w*f,head.h*f);
  source(body.img,body.x,body.y,body.w,body.h,(body.x-body.pegX)*b,-200,body.w*b,200);
@@ -127,8 +145,8 @@ function enterPortal(){const o=modal?.type==='portal'?modal.portal:portalForQues
 function leaveArena(){if(!encounter)return;const back=encounter.returnX;encounter=null;modal=null;player.x=back;player.y=ground;player.vx=0;player.vy=0;player.onGround=true;player.invincible=1.2;pickups=[];floaters=[];effects=[];clearInput();syncCamera();save();notify(enemiesLeft()?'후우, 마을에서 다시 준비하자!':'해냈다! 부탁한 분께 돌아가자.',3);}
 function checkArenaClear(){if(encounter&&!encounter.cleared&&!enemiesLeft()){encounter.cleared=true;encounter.exitX=clamp(player.x+160,260,ARENA_WIDTH-150);notify('모두 처치했어! 황금 포탈로 돌아가자.',4);tone(880,.18);save();}}
 function syncNameInput(){nameInput.hidden=mode!=='create';if(nameInput.hidden)return;const r=canvas.getBoundingClientRect();Object.assign(nameInput.style,{left:`${(W/2-180)/W*100}%`,top:`${542/H*100}%`,width:`${360/W*100}%`,height:`${41/H*100}%`,fontSize:`${29*r.height/H}px`});}
-function chooseStyle(kind,value){if(!['hair','face'].includes(kind)||!Number.isInteger(value)||value<0||value>3)return;s[kind]=value;profileError='';tone(540,.05);}
-function confirmCharacter(){if(!model.setProfile(s.hair,s.face,nameInput.value)){profileError='이름을 적어줘! (최대 8글자)';return;}nameInput.blur();nameInput.hidden=true;clearInput();mode=s.introSeen?(s.finished?'ending':'play'):'intro';scene=0;sceneTime=0;syncCamera();save();}
+function chooseStyle(kind,value){if(!['hair','color'].includes(kind)||!Number.isInteger(value)||value<0||value>3)return;s[kind]=value;profileError='';tone(540,.05);}
+function confirmCharacter(){if(!model.setProfile(s.hair,s.color,nameInput.value)){profileError='이름을 적어줘! (최대 8글자)';return;}nameInput.blur();nameInput.hidden=true;clearInput();mode=s.introSeen?(s.finished?'ending':'play'):'intro';scene=0;sceneTime=0;syncCamera();save();}
 function say(role,art,lines,done,doneLabel='대화 마치기'){clearInput();modal={type:'dialog',role,art,lines:Array.isArray(lines)?lines:[lines],index:0,elapsed:0,done,doneLabel};announce(modal.lines[0]);}
 function nextDialog(){const m=modal;if(!m||m.type!=='dialog')return;if(!typingDone(m.lines[m.index],m.elapsed)){m.elapsed=(Array.from(m.lines[m.index]).length+1)/TYPE_SPEED;return;}if(++m.index<m.lines.length){m.elapsed=0;announce(m.lines[m.index]);}else{modal=null;m.done?.();save();}}
 function startPractice(q,indices=null,done=null,actionLabel='선택 결과 확인하기'){
@@ -189,14 +207,14 @@ function closeQuiz(){modal=modal?.returnTo||null;player.invincible=Math.max(play
 function choosePlan(i){i=modal.order?.[i]??i;const opts=['shade','water','help','run','noWater','endure'];const id=opts[i];if(i<3){if(!s.plans.includes(id))model.collect('plans',id);modal.picked=[...s.plans];modal.wrong=null;tone(700);save();if(s.plans.length===3){modal=null;completeQuest();}}else{modal.wrong=['','','','더운 한낮에는 쉬어요.','물을 마실 곳이 필요해요.','힘들 때는 도움받아요.'][i];modal.feedbackElapsed=0;}}
 function attack(skill=false){if(mode!=='play'||modal||player.cooldown>0)return;if(skill&&(s.quest<2||s.quest===2&&!s.accepted)){notify('쉼터 부탁에서 스킬이 열려요.');return;}if(!model.spend(skill?ENERGY.skill:ENERGY.attack)){notify('기력 충전 버튼을 눌러요!',1.5);return;}player.cooldown=skill?.8:.32;player.attack=skill?.4:.22;tone(skill?480:350,.035);const range=skill?180:125;let hit=false;for(const e of activeEnemies()){if(e.hp<=0||e.type==='boss'&&s.quest<4)continue;if(Math.abs(e.x-player.x)<range&&Math.abs(e.y-player.y)<145&&(e.x-player.x)*player.dir>-35){e.hp=Math.max(0,e.hp-(skill?30:10));e.hit=.22;floating(skill?'30':'10',e.x,e.y-(e.type==='boss'?195:70),'#fff2bc');hit=true;if(e.hp<=0){model.kill(e.id);tone(650,.07);if(e.type==='boss'){s.bossDead=true;notify('수호석을 조사해요!',3);save();}else{floating('경험치 +5',e.x,e.y-100);s.xp+=5;save();}}}}checkArenaClear();if(skill)effects.push({x:player.x+player.dir*65,y:player.y-65,t:.35});if(s.energy<=60&&!s.firstCharge){s.firstCharge=true;notify('기력이 줄었어요. 책 버튼으로 충전!',4);}return hit;}
 function jump(){if(mode==='play'&&!modal&&player.onGround){player.vy=-690;player.onGround=false;tone(520,.04);}}
-function hurt(){if(player.invincible>0)return;model.hurt();player.invincible=1.7;player.vx=-player.dir*130;tone(190,.12);floating('아야!',player.x,player.y-130,'#fff1d1');if(s.hp<=0){model.respawn();if(encounter)leaveArena();player.x=s.x;player.y=ground;syncCamera();player.vy=0;resetEnemies();say('쉼터 선생님','caretaker',['어머, 많이 놀랐지? 여기선 괜찮아.','한숨 돌렸으니 다시 준비해 보자!']);save();}}
+function hurt(){if(player.invincible>0)return;react(2,.9);model.hurt();player.invincible=1.7;player.vx=-player.dir*130;tone(190,.12);floating('아야!',player.x,player.y-130,'#fff1d1');if(s.hp<=0){model.respawn();if(encounter)leaveArena();player.x=s.x;player.y=ground;syncCamera();player.vy=0;resetEnemies();say('쉼터 선생님','caretaker',['어머, 많이 놀랐지? 여기선 괜찮아.','한숨 돌렸으니 다시 준비해 보자!']);save();}}
 
-function start(newGame=false){encounter=null;if(newGame){model=new Adventure();s=model.s;s.sound=true;player={x:230,y:ground,vx:0,vy:0,dir:1,onGround:true,attack:0,cooldown:0,invincible:0};resetEnemies();}tone();clearInput();if(newGame||!s.profileReady||!s.appearanceReady){mode='create';profileError='';nameInput.value=s.playerName;nameInput.hidden=false;}else{mode=s.introSeen?(s.finished?'ending':'play'):'intro';scene=0;sceneTime=0;if(mode==='play')notify(`다시 만나서 반가워, ${s.playerName}!`,3);}syncCamera();}
+function start(newGame=false){encounter=null;emotion={face:0,t:0};if(newGame){model=new Adventure();s=model.s;s.sound=true;player={x:230,y:ground,vx:0,vy:0,dir:1,onGround:true,attack:0,cooldown:0,invincible:0};resetEnemies();}tone();clearInput();if(newGame||!s.profileReady||!s.appearanceReady||s.styleVersion!==2){mode='create';profileError='';nameInput.value=s.playerName;nameInput.hidden=false;}else{mode=s.introSeen?(s.finished?'ending':'play'):'intro';scene=0;sceneTime=0;if(mode==='play')notify(`다시 만나서 반가워, ${s.playerName}!`,3);}syncCamera();}
 function finishIntro(){if(!s.profileReady){mode='create';return;}mode='play';s.introSeen=true;player.x=230;player.y=ground;s.x=230;syncCamera();save();notify('동그란 조이패드 또는 방향키로 이동',5);}
 function nextScene(){if(intro[scene].blackout)return;const elapsed=Math.max(0,sceneTime-introDelay());if(!typingDone(introText(),elapsed)){sceneTime=(Array.from(introText()).length+1)/TYPE_SPEED+introDelay();return;}advanceScene();}
 function goalForZone(x){if(x<1200)return '햇살 광장';if(x<2400)return '그늘 오솔길';if(x<3400)return '쉼터 창고길';if(x<4250)return '관측 언덕';return '큰 나무 숲';}
 
-function update(dt){time+=dt;autoSaveTime+=dt;if(toast){toast.t-=dt;toast.elapsed+=dt;if(toast.t<=0)toast=null;}floaters.forEach(f=>{f.t-=dt;f.y-=dt*35;});floaters=floaters.filter(f=>f.t>0);effects.forEach(e=>e.t-=dt);effects=effects.filter(e=>e.t>0);pickups.forEach(p=>p.elapsed+=dt);pickups=pickups.filter(p=>p.elapsed<p.duration);
+function update(dt){emotion.t=Math.max(0,emotion.t-dt);time+=dt;autoSaveTime+=dt;if(toast){toast.t-=dt;toast.elapsed+=dt;if(toast.t<=0)toast=null;}floaters.forEach(f=>{f.t-=dt;f.y-=dt*35;});floaters=floaters.filter(f=>f.t>0);effects.forEach(e=>e.t-=dt);effects=effects.filter(e=>e.t>0);pickups.forEach(p=>p.elapsed+=dt);pickups=pickups.filter(p=>p.elapsed<p.duration);
  if(modal){modal.elapsed=(modal.elapsed||0)+dt;modal.feedbackElapsed=(modal.feedbackElapsed||0)+dt;}
  if(mode==='intro'){sceneTime+=dt;if(intro[scene].blackout){if(sceneTime>=intro[scene].duration)advanceScene();}else if(sceneTime>Math.max(5.5,Array.from(introText()).length/TYPE_SPEED+introDelay()+2.5))nextScene();return;}
  if(mode!=='play'||modal||document.hidden||innerHeight>innerWidth)return;
@@ -249,12 +267,12 @@ function drawControls(){const bx=108,by=H-104,size=156;spriteRect('joyBase',bx-s
 }
 function drawCreate(){
  drawMap(.5,.5,1.05);veil(.22);const w=Math.min(1120,W-40),x=(W-w)/2,leftW=clamp(w*.25,220,280),rightX=x+leftW+48,rightW=w-leftW-76,gap=12,cw=(rightW-gap*3)/4;
- panel(x,30,w,670);ribbon('나만의 수호대원 만들기',W/2-220,5,440);text('머리 4가지 × 표정 4가지',W/2,99,25,'#596d47','center');
- panel(x+24,143,leftW-12,345);heading('나의 수호대원',x+18+leftW/2,180,23,'#49321e','center');drawCharacter('hero',x+18+leftW/2,411,220+Math.sin(time*1.5)*1.2);text(HAIRSTYLES[s.hair],x+18+leftW/2,430,19,'#61754c','center');text(EXPRESSIONS[s.face],x+18+leftW/2,452,19,'#61754c','center');
- for(const [kind,title,labels,by] of [['hair','헤어스타일',HAIRSTYLES,154],['face','표정',EXPRESSIONS,344]]){
-  heading(title,rightX,by-24,25);for(let i=0;i<4;i++){const bx=rightX+i*(cw+gap),selected=s[kind]===i;panel(bx,by,cw,150);drawHead(kind==='hair'?i:s.hair,kind==='face'?i:s.face,bx+cw/2,by+100,76);heading(labels[i],bx+cw/2,by+116,19,selected?'#4e723d':'#69513a','center');if(selected)ui(300,199,55,58,bx+cw-29,by+5,22,23);hits.push({x:bx,y:by,w:cw,h:150,fn:()=>chooseStyle(kind,i),label:`${title}: ${labels[i]}`});}
+ panel(x,30,w,670);ribbon('나만의 수호대원 만들기',W/2-220,5,440);text('머리 4가지 × 머리색 4가지',W/2,99,25,'#596d47','center');
+ panel(x+24,143,leftW-12,345);heading('나의 수호대원',x+18+leftW/2,180,23,'#49321e','center');drawCharacter('hero',x+18+leftW/2,411,220+Math.sin(time*1.5)*1.2);text(HAIRSTYLES[s.hair],x+18+leftW/2,430,19,'#61754c','center');text(HAIR_COLORS[s.color],x+18+leftW/2,452,19,'#61754c','center');
+ for(const [kind,title,labels,by] of [['hair','헤어스타일',HAIRSTYLES,154],['color','머리색',HAIR_COLORS,344]]){
+  heading(title,rightX,by-24,25);for(let i=0;i<4;i++){const bx=rightX+i*(cw+gap),selected=s[kind]===i;panel(bx,by,cw,150);drawHead(kind==='hair'?i:s.hair,kind==='color'?i:s.color,bx+cw/2,by+100,76);heading(labels[i],bx+cw/2,by+116,19,selected?'#4e723d':'#69513a','center');if(selected)ui(300,199,55,58,bx+cw-29,by+5,22,23);hits.push({x:bx,y:by,w:cw,h:150,fn:()=>chooseStyle(kind,i),label:`${title}: ${labels[i]}`});}
  }
- text('나를 뭐라고 부르면 좋을까?',W/2,515,24,'#5b4530','center');panel(W/2-210,533,420,56);text(profileError||'이름은 8글자까지 쓸 수 있어.',W/2,607,19,profileError?'#a34d31':'#8a7150','center');button(s.introSeen?'이 모습으로 모험 계속':'이 모습으로 이야기 시작',W/2-205,627,410,52,confirmCharacter,{size:28});button('시작 화면',x+23,56,120,40,()=>{nameInput.blur();mode='title';modal=null;},{size:20});
+ text('나를 뭐라고 부르면 좋을까?',W/2,515,24,'#5b4530','center');panel(W/2-210,533,420,56);text(profileError||'이름 8글자 · 표정은 모험 상황에 따라 바뀌어.',W/2,607,19,profileError?'#a34d31':'#8a7150','center');button(s.introSeen?'이 모습으로 모험 계속':'이 모습으로 이야기 시작',W/2-205,627,410,52,confirmCharacter,{size:28});button('시작 화면',x+23,56,120,40,()=>{nameInput.blur();mode='title';modal=null;},{size:20});
 }
 function drawPortal(m){const w=Math.min(780,W-60),x=(W-w)/2,y=68;panel(x,y,w,584);ribbon('포탈 입장 준비',W/2-200,y-30,400);sprite('portal',x+135,y+275,188+Math.sin(time*1.6)*2);heading(m.portal.title,x+265,y+92,28);text(`남은 몬스터 ${enemiesLeft()}마리`,x+265,y+143,26);text(`체력 ${s.hp}/6 · 기력 ${s.energy}/100`,x+265,y+193,24);
  text('잠깐 쉬어 체력을 회복했어.',W/2,y+327,26,'#567249','center');text('문제로 기력을 채울 수도 있어.',W/2,y+370,26,'#567249','center');text('기력 충전은 마을 화면의 책 버튼에서!',W/2,y+415,22,'#7d6549','center');
@@ -331,6 +349,6 @@ async function load(){const fontReady=document.fonts?Promise.all([
  document.fonts.load('700 28px "NEXON Lv1 Gothic"','가나다 ABC 123'),
  document.fonts.load('400 28px "NEXON Lv2 Gothic"','가나다 ABC 123'),
  document.fonts.load('700 28px "NEXON Lv2 Gothic"','가나다 ABC 123')
-]).catch(error=>console.warn('Using fallback fonts:',error)):Promise.resolve();const files={ui:'ui.png',bg:'village-bg.png',map:'world-map.png',sprites:'sprites.png',controls:'controls.png',frames:'frames.png',actions:'actions.png',ribbon:'ribbon.png',adventurers:'adventurers-portals.png',arena:'portal-forest.png',heads:'character-heads.png',bodies:'character-bodies-collar.png',ruined:'ruined-map.png',cloth:'cloth-actions.png'};let n=0;await Promise.all(Object.entries(files).map(([key,file])=>new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>{images[key]=img;document.querySelector('#load-progress').value=++n/Object.keys(files).length*100;resolve();};img.onerror=()=>reject(new Error(file));img.src=`assets/${file}`;})));await fontReady;buildAtlas(images.ribbon,1,1,['ribbon']);buildAtlas(images.sprites,4,4,names);buildAtlas(images.adventurers,2,3,['unused-0','unused-1','unused-2','unused-3','portal','returnPortal'],{portal:[0,790,627,464],returnPortal:[627,790,627,464]});
- buildAtlas(images.heads,4,4,Array.from({length:16},(_,i)=>`head-${i}`));buildAtlas(images.bodies,4,1,['body-hero','body-walkA','body-walkB','body-attack'],{'body-walkB':[1086,0,500,724],'body-attack':[1586,0,586,724]});attachCharacterAnchors();atlases.recycleBadge={img:images.ui,x:932,y:565,w:55,h:49};buildAtlas(images.cloth,3,1,['clothShade','clothClosed','clothLayers']);buildAtlas(images.controls,3,2,controlNames);buildAtlas(images.actions,3,2,['shadeAction','drinkAction','helpAction','runAction','refuseAction','endureAction']);resize();document.querySelector('#loading').remove();mode='title';requestAnimationFrame(frame);}
+]).catch(error=>console.warn('Using fallback fonts:',error)):Promise.resolve();const files={ui:'ui.png',bg:'village-bg.png',map:'world-map.png',sprites:'sprites.png',controls:'controls.png',frames:'frames.png',actions:'actions.png',ribbon:'ribbon.png',adventurers:'adventurers-portals.png',arena:'portal-forest.png',heads:'character-heads.png',headsBlack:'character-heads-black.png',headsGold:'character-heads-gold.png',headsBlue:'character-heads-blue.png',bodies:'character-bodies-collar.png',ruined:'ruined-map.png',cloth:'cloth-actions.png'};let n=0;await Promise.all(Object.entries(files).map(([key,file])=>new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>{images[key]=img;document.querySelector('#load-progress').value=++n/Object.keys(files).length*100;resolve();};img.onerror=()=>reject(new Error(file));img.src=`assets/${file}`;})));await fontReady;buildAtlas(images.ribbon,1,1,['ribbon']);buildAtlas(images.sprites,4,4,names);buildAtlas(images.adventurers,2,3,['unused-0','unused-1','unused-2','unused-3','portal','returnPortal'],{portal:[0,790,627,464],returnPortal:[627,790,627,464]});
+ for(const [color,key] of ['heads','headsBlack','headsGold','headsBlue'].entries())buildAtlas(images[key],4,4,Array.from({length:16},(_,i)=>`head-${color}-${i}`));buildAtlas(images.bodies,4,1,['body-hero','body-walkA','body-walkB','body-attack'],{'body-walkB':[1086,0,500,724],'body-attack':[1586,0,586,724]});attachCharacterAnchors();atlases.recycleBadge={img:images.ui,x:932,y:565,w:55,h:49};buildAtlas(images.cloth,3,1,['clothShade','clothClosed','clothLayers']);buildAtlas(images.controls,3,2,controlNames);buildAtlas(images.actions,3,2,['shadeAction','drinkAction','helpAction','runAction','refuseAction','endureAction']);resize();document.querySelector('#loading').remove();mode='title';requestAnimationFrame(frame);}
 load().catch(e=>{document.querySelector('#loading span').textContent='그림을 불러오지 못했어요. 새로고침해 주세요.';console.error('Asset load failed:',e);});

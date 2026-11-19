@@ -19,8 +19,8 @@ async function engine(){
  const document={hidden:false,querySelector:n=>nodes[n]??=( {textContent:'',value:'',hidden:true,style:{},blur(){},remove(){},addEventListener(){}}),addEventListener:(n,f)=>events[n]=f,createElement:()=>createCanvas(1,1)};
  class LocalImage extends Image{set src(value){super.src=readFileSync(root+'/'+value);}get src(){return super.src;}}
  const context={CORE,console,document,innerWidth:1280,innerHeight:720,devicePixelRatio:1,localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},Image:LocalImage,requestAnimationFrame:f=>context.nextFrame=f,addEventListener:(n,f)=>events[n]=f,setTimeout,clearTimeout};context.window=context;vm.createContext(context);
- let src=readFileSync(root+'/game.js','utf8').replace(/^import .*?;\n/,'const {Adventure, QUESTS, QUESTIONS, HAIRSTYLES, EXPRESSIONS, LESSONS, FINAL_TEST, REVIEW_TEST, ENERGY, clamp}=CORE;\n');
- src+='\nglobalThis.qa={get s(){return s},get player(){return player},get mode(){return mode},get modal(){return modal},get enemies(){return enemies},get hits(){return hits},get stick(){return stick},get encounter(){return encounter},activeEnemies,portalForQuest,openPortal,enterPortal,leaveArena,primaryTarget,triggerPrimary,closeMenu,chooseStyle,confirmCharacter,drawCharacter,drawHead,nextScene,introText,get intro(){return intro},get scene(){return scene},get sceneTime(){return sceneTime},get cam(){return cam},get pickups(){return pickups},get toast(){return toast},typed,typingDone,syncCamera,get W(){return W},get H(){return H},start,finishIntro,nextDialog,interact,attack,jump,openQuiz,answerQuiz,closeQuiz,choosePlan,continueLesson,startPractice,answerLearning,nextLearning,openFinal,openReview,showTestReport,render,resize,update,save};';
+ let src=readFileSync(root+'/game.js','utf8').replace(/^import .*?;\n/,'const {Adventure, QUESTS, QUESTIONS, HAIRSTYLES, HAIR_COLORS, LESSONS, FINAL_TEST, REVIEW_TEST, ENERGY, clamp}=CORE;\n');
+ src+='\nglobalThis.qa={get s(){return s},get player(){return player},get mode(){return mode},get modal(){return modal},get enemies(){return enemies},get hits(){return hits},get stick(){return stick},get encounter(){return encounter},expressionFor,react,hurt,pickup,activeEnemies,portalForQuest,openPortal,enterPortal,leaveArena,primaryTarget,triggerPrimary,closeMenu,chooseStyle,confirmCharacter,drawCharacter,drawHead,nextScene,introText,get intro(){return intro},get scene(){return scene},get sceneTime(){return sceneTime},get cam(){return cam},get pickups(){return pickups},get toast(){return toast},typed,typingDone,syncCamera,get W(){return W},get H(){return H},start,finishIntro,nextDialog,interact,attack,jump,openQuiz,answerQuiz,closeQuiz,choosePlan,continueLesson,startPractice,answerLearning,nextLearning,openFinal,openReview,showTestReport,render,resize,update,save};';
  vm.runInContext(src,context,{filename:'game.js'});
  for(let i=0;i<100&&context.qa.mode==='loading';i++)await new Promise(r=>setTimeout(r,10));
  assert.equal(context.qa.mode,'title','all generated image assets load and atlas slices compile');
@@ -29,7 +29,7 @@ async function engine(){
  function key(code,hold=.04){events.keydown({code,repeat:false,preventDefault(){}});tick(hold);events.keyup({code});}
  function pointer(n,id,x,y){canvasEvents[n]({pointerId:id,clientX:x,clientY:y,preventDefault(){}});}
  function snapshot(name,w=1280,h=720){box.width=w;box.height=h;context.innerWidth=w;context.innerHeight=h;q.resize();q.render();mkdirSync(root+'/qa',{recursive:true});writeFileSync(root+'/qa/'+name+'.png',realCanvas.toBuffer('image/png'));}
- function createProfile(name='별이',hair=3,face=0){q.chooseStyle('hair',hair);q.chooseStyle('face',face);nodes['#player-name'].value=name;q.confirmCharacter();}
+ function createProfile(name='별이',hair=3,color=0){q.chooseStyle('hair',hair);q.chooseStyle('color',color);nodes['#player-name'].value=name;q.confirmCharacter();}
  function closeDialog(){while(q.modal?.type==='dialog')q.nextDialog();}
  function finishLearning(){for(let n=0;n<100;n++){const m=q.modal;if(!m)return;if(m.type==='lesson')q.continueLesson();else if(['practice','test','review'].includes(m.type)){q.answerLearning(m.order.findIndex(i=>i===m.question.correct));q.nextLearning();}else if(m.type==='testReport'){q.render();const h=q.hits.find(h=>h.label==='수호석 받기'||h.label==='마을로 돌아가기');if(!h)return;h.fn();}else return;}throw new Error('learning did not finish');}
  function closeReward(){assert.equal(q.modal?.type,'reward');const done=q.modal.done;vm.runInContext('modal=null',context);done?.();q.render();}
@@ -108,16 +108,16 @@ test('기존 저장을 보존해 캐릭터를 만들고 포탈에서 준비·퇴
 });
 
 
-test('시작창의 헤어 4개와 표정 4개가 16가지 다른 실제 캐릭터를 만든다',async()=>{
+test('시작창의 헤어 4개와 머리색 4개가 16가지 다른 실제 캐릭터를 만든다',async()=>{
  const e=await engine(),{q,snapshot,realCanvas,createProfile}=e;q.start(true);q.render();
- assert.equal(q.hits.filter(h=>h.label.startsWith('헤어스타일:')).length,4);assert.equal(q.hits.filter(h=>h.label.startsWith('표정:')).length,4);assert.ok(!q.hits.some(h=>/여성형|남성형/.test(h.label)));
- q.hits.find(h=>h.label==='헤어스타일: 일자 단발').fn();q.render();q.hits.find(h=>h.label==='표정: 호기심').fn();assert.equal(q.s.hair,1);assert.equal(q.s.face,2);
+ assert.equal(q.hits.filter(h=>h.label.startsWith('헤어스타일:')).length,4);assert.equal(q.hits.filter(h=>h.label.startsWith('머리색:')).length,4);assert.ok(!q.hits.some(h=>/여성형|남성형/.test(h.label)));
+ q.hits.find(h=>h.label==='헤어스타일: 일자 단발').fn();q.render();q.hits.find(h=>h.label==='머리색: 금색').fn();assert.equal(q.s.hair,1);assert.equal(q.s.color,2);
  snapshot('33-custom-create-tablet',1024,768);snapshot('34-custom-create-phone',932,430);snapshot('35-custom-create-desktop',1280,720);
  const ctx=realCanvas.getContext('2d');ctx.fillStyle='#e7d7b7';ctx.fillRect(0,0,1280,720);const hashes=new Set();
- for(let hair=0;hair<4;hair++)for(let face=0;face<4;face++){const x=face*320,y=hair*180;q.drawCharacter('hero',x+160,y+165,155,false,1,hair,face);hashes.add(createHash('sha256').update(ctx.getImageData(x,y,320,180).data).digest('hex'));}
- assert.equal(hashes.size,16,'actual generated sprite pixels differ for every hair/expression pair');writeFileSync(root+'/qa/36-custom-sixteen.png',realCanvas.toBuffer('image/png'));
- ctx.fillStyle='#e7d7b7';ctx.fillRect(0,0,1280,720);for(let hair=0;hair<4;hair++)for(const [col,pose] of ['hero','walkA','walkB','attack'].entries())q.drawCharacter(pose,col*320+145,hair*180+165,155,false,1,hair,hair);writeFileSync(root+'/qa/37-custom-poses.png',realCanvas.toBuffer('image/png'));
- createProfile('별빛',1,2);q.finishIntro();q.save();const restored=new CORE.Adventure(JSON.parse(e.storage.get('five-villages-sun-v1')));assert.equal(restored.s.hair,1);assert.equal(restored.s.face,2);assert.equal(restored.s.playerName,'별빛');assert.equal(restored.s.appearanceReady,true);
+ for(let hair=0;hair<4;hair++)for(let color=0;color<4;color++){const x=color*320,y=hair*180;q.drawCharacter('hero',x+160,y+165,155,false,1,hair,color);hashes.add(createHash('sha256').update(ctx.getImageData(x,y,320,180).data).digest('hex'));}
+ assert.equal(hashes.size,16,'actual generated sprite pixels differ for every hair/color pair');writeFileSync(root+'/qa/36-custom-sixteen.png',realCanvas.toBuffer('image/png'));
+ ctx.fillStyle='#e7d7b7';ctx.fillRect(0,0,1280,720);for(let hair=0;hair<4;hair++)for(const [col,pose] of ['hero','walkA','walkB','attack'].entries())q.drawCharacter(pose,col*320+145,hair*180+165,155,false,1,hair,hair,col);writeFileSync(root+'/qa/37-custom-poses.png',realCanvas.toBuffer('image/png'));
+ createProfile('별빛',1,2);q.finishIntro();q.save();const restored=new CORE.Adventure(JSON.parse(e.storage.get('five-villages-sun-v1')));assert.equal(restored.s.hair,1);assert.equal(restored.s.color,2);assert.equal(restored.s.playerName,'별빛');assert.equal(restored.s.appearanceReady,true);
 });
 
 test('저주 뒤 암전과 황폐한 삽화를 보여주고 재해 이름을 도입에서 미리 말하지 않는다',async()=>{
@@ -148,4 +148,16 @@ test('오른쪽 아래 기본 버튼이 대화·공격으로 바뀌고 메뉴 X�
  q.player.x=700;q.s.accepted=false;q.render();assert.ok(q.hits.some(h=>h.label==='공격'&&h.hold==='attack'));key('KeyZ',.04);assert.equal(q.s.energy,energy-10);q.s.quest=2;q.s.accepted=true;q.player.cooldown=0;q.attack(true);assert.equal(q.s.energy,energy-35);
  key('Escape');assert.equal(q.modal.type,'menu');snapshot('56-tablet-menu-close',1024,768);h=q.hits.find(h=>h.label==='메뉴 닫기');assert.ok(h);const cx=(h.x+h.w/2)/q.W*box.width,cy=(h.y+h.h/2)/q.H*box.height;pointer('pointerdown',41,cx,cy);pointer('pointerup',41,cx,cy);assert.equal(q.modal,null);snapshot('57-hud-name-frame',1280,720);
  q.player.x=320;q.s.quest=0;q.s.accepted=false;q.render();key('KeyZ');assert.equal(q.modal.type,'dialog','Z follows the visible conversation action');snapshot('58-dialog-no-hint');
+});
+
+
+test('표정은 저장한 얼굴 대신 전투·피격·학습·획득 상황을 따른다',async()=>{
+ const e=await engine(),{q,createProfile,tick,context,snapshot}=e;q.start(true);createProfile('구름',2,3);q.finishIntro();
+ assert.equal(q.expressionFor(),0);q.player.attack=.2;assert.equal(q.expressionFor(),3);q.player.invincible=0;q.hurt();assert.equal(q.expressionFor(),2);tick(1);assert.equal(q.expressionFor(),0);
+ q.pickup({art:'water',name:'물',x:230,y:568});assert.equal(q.expressionFor(),1);snapshot('54-mood-pickup');tick(1.3);assert.equal(q.expressionFor(),0);
+ q.s.energy=80;q.openQuiz();assert.equal(q.expressionFor(),2);const m=q.modal;q.answerQuiz(m.order.findIndex(i=>i!==m.question.correct));assert.equal(q.expressionFor(),2);q.answerQuiz(m.order.findIndex(i=>i===m.question.correct));assert.equal(q.expressionFor(),1);snapshot('55-mood-correct');q.closeQuiz();
+ q.startPractice(0);q.continueLesson();assert.equal(q.expressionFor(),2);q.answerLearning(q.modal.order.findIndex(i=>i===q.modal.question.correct));assert.equal(q.expressionFor(),1);
+ vm.runInContext("modal={type:'reward'}",context);assert.equal(q.expressionFor(),1);vm.runInContext("modal=null",context);
+ assert.equal(q.s.hair,2);assert.equal(q.s.color,3);assert.ok(!('face'in q.s));
+ q.s.styleVersion=0;q.s.introSeen=true;q.s.quest=3;q.s.x=3600;q.start(false);assert.equal(q.mode,'create');assert.equal(q.s.hair,2);assert.equal(q.s.playerName,'구름');createProfile('구름',2,1);assert.equal(q.mode,'play');assert.equal(q.s.quest,3);assert.equal(q.s.styleVersion,2);
 });
