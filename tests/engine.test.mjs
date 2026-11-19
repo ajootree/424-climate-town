@@ -19,8 +19,8 @@ async function engine(){
  const document={hidden:false,querySelector:n=>nodes[n]??=( {textContent:'',value:'',hidden:true,style:{},blur(){},remove(){},addEventListener(){}}),addEventListener:(n,f)=>events[n]=f,createElement:()=>createCanvas(1,1)};
  class LocalImage extends Image{set src(value){super.src=readFileSync(root+'/'+value);}get src(){return super.src;}}
  const context={CORE,console,document,innerWidth:1280,innerHeight:720,devicePixelRatio:1,localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},Image:LocalImage,requestAnimationFrame:f=>context.nextFrame=f,addEventListener:(n,f)=>events[n]=f,setTimeout,clearTimeout};context.window=context;vm.createContext(context);
- let src=readFileSync(root+'/game.js','utf8').replace(/^import .*?;\n/,'const {Adventure, QUESTS, QUESTIONS, HAIRSTYLES, EXPRESSIONS, LESSONS, FINAL_TEST, REVIEW_TEST, clamp}=CORE;\n');
- src+='\nglobalThis.qa={get s(){return s},get player(){return player},get mode(){return mode},get modal(){return modal},get enemies(){return enemies},get hits(){return hits},get stick(){return stick},get encounter(){return encounter},activeEnemies,portalForQuest,openPortal,enterPortal,leaveArena,chooseStyle,confirmCharacter,drawCharacter,drawHead,nextScene,introText,get intro(){return intro},get scene(){return scene},get sceneTime(){return sceneTime},get cam(){return cam},get pickups(){return pickups},get toast(){return toast},typed,typingDone,syncCamera,get W(){return W},get H(){return H},start,finishIntro,nextDialog,interact,attack,jump,openQuiz,answerQuiz,closeQuiz,choosePlan,continueLesson,startPractice,answerLearning,nextLearning,openFinal,openReview,showTestReport,render,resize,update,save};';
+ let src=readFileSync(root+'/game.js','utf8').replace(/^import .*?;\n/,'const {Adventure, QUESTS, QUESTIONS, HAIRSTYLES, EXPRESSIONS, LESSONS, FINAL_TEST, REVIEW_TEST, ENERGY, clamp}=CORE;\n');
+ src+='\nglobalThis.qa={get s(){return s},get player(){return player},get mode(){return mode},get modal(){return modal},get enemies(){return enemies},get hits(){return hits},get stick(){return stick},get encounter(){return encounter},activeEnemies,portalForQuest,openPortal,enterPortal,leaveArena,primaryTarget,triggerPrimary,closeMenu,chooseStyle,confirmCharacter,drawCharacter,drawHead,nextScene,introText,get intro(){return intro},get scene(){return scene},get sceneTime(){return sceneTime},get cam(){return cam},get pickups(){return pickups},get toast(){return toast},typed,typingDone,syncCamera,get W(){return W},get H(){return H},start,finishIntro,nextDialog,interact,attack,jump,openQuiz,answerQuiz,closeQuiz,choosePlan,continueLesson,startPractice,answerLearning,nextLearning,openFinal,openReview,showTestReport,render,resize,update,save};';
  vm.runInContext(src,context,{filename:'game.js'});
  for(let i=0;i<100&&context.qa.mode==='loading';i++)await new Promise(r=>setTimeout(r,10));
  assert.equal(context.qa.mode,'title','all generated image assets load and atlas slices compile');
@@ -41,7 +41,7 @@ test('생성 이미지 렌더링·키보드·조이패드·퀘스트 5개와 엔
  snapshot('01-title-tablet',1024,768);snapshot('01-title-phone',932,430);snapshot('01-title',1280,720);q.start(true);assert.equal(q.mode,'create');snapshot('22-create-tablet',1024,768);snapshot('23-create-phone',932,430);snapshot('24-create-desktop',1280,720);createProfile();assert.equal(q.s.hair,3);assert.equal(q.s.playerName,'별이');assert.equal(q.mode,'intro');q.render();snapshot('02-intro');q.finishIntro();q.render();snapshot('03-village-desktop');snapshot('04-village-tablet',1024,768);snapshot('05-village-phone',932,430);snapshot('06-village-desktop',1280,720);
  const old=q.player.x;key('ArrowRight',.25);assert.ok(q.player.x>old+45);key('ArrowLeft',.25);assert.ok(Math.abs(q.player.x-old)<5);
  pointer('pointerdown',1,155,616);tick(.25);assert.ok(q.player.x>old+40);pointer('pointerup',1,155,616);assert.equal(q.stick.x,0);
- const beforeTouch=q.player.x,beforeEnergy=q.s.energy;pointer('pointerdown',2,155,616);pointer('pointerdown',3,1180,616);tick(.5);assert.ok(q.player.x>beforeTouch+80,'two touch contacts support moving and attacking together');assert.ok(q.s.energy<beforeEnergy,'touch attack consumes energy');pointer('pointerup',2,155,616);pointer('pointerup',3,1180,616);
+ q.player.x=700;q.render();const beforeTouch=q.player.x,beforeEnergy=q.s.energy;pointer('pointerdown',2,155,616);pointer('pointerdown',3,1180,616);tick(.5);assert.ok(q.player.x>beforeTouch+80,'two touch contacts support moving and attacking together');assert.ok(q.s.energy<beforeEnergy,'touch attack consumes energy');pointer('pointerup',2,155,616);pointer('pointerup',3,1180,616);
  q.player.x=320;q.interact();closeDialog();assert.ok(q.s.accepted);
  for(const x of [570,810,1000]){q.player.x=x;q.interact();closeDialog();}
  finishLearning();assert.equal(q.s.quest,1);closeReward();q.player.x=1110;q.interact();closeDialog();finishLearning();
@@ -49,10 +49,10 @@ test('생성 이미지 렌더링·키보드·조이패드·퀘스트 5개와 엔
  for(const enemy of q.enemies.filter(e=>e.type==='dust')){q.player.x=enemy.x-75;q.player.y=568;q.player.dir=1;while(enemy.hp>0){q.attack();tick(.34);}}
  assert.equal(q.s.killed.filter(id=>id.startsWith('dust')).length,4);
  q.openQuiz();assert.equal(q.modal.type,'quiz');const px=q.player.x,en=q.enemies.find(e=>e.type==='thorn'),ex=en.x;tick(2);assert.equal(q.player.x,px);assert.equal(en.x,ex,'enemy motion pauses while reading');
- const m=q.modal;const wrong=m.order.findIndex(i=>i!==m.question.correct),right=m.order.findIndex(i=>i===m.question.correct),oldEnergy=q.s.energy;q.answerQuiz(wrong);assert.equal(q.s.energy,oldEnergy);q.answerQuiz(right);assert.equal(q.s.energy,Math.min(oldEnergy+40,100));snapshot('07-energy-question');q.closeQuiz();
+ const m=q.modal;const wrong=m.order.findIndex(i=>i!==m.question.correct),right=m.order.findIndex(i=>i===m.question.correct),oldEnergy=q.s.energy;q.answerQuiz(wrong);assert.equal(q.s.energy,oldEnergy);q.answerQuiz(right);assert.equal(q.s.energy,Math.min(oldEnergy+20,100));snapshot('07-energy-question');q.closeQuiz();
  assert.ok(q.encounter.cleared);q.leaveArena();assert.equal(q.encounter,null);assert.equal(q.activeEnemies().length,0);for(const x of [2070,2280]){q.player.x=x;q.interact();finishLearning();}q.player.x=1110;q.interact();closeDialog();assert.equal(q.s.quest,2);closeReward();
  q.player.x=2410;q.interact();closeDialog();assert.ok(q.s.accepted);q.player.x=2565;q.interact();q.enterPortal();
- for(const enemy of q.enemies.filter(e=>e.type==='thorn')){q.player.x=enemy.x-90;q.player.y=568;q.player.dir=1;while(enemy.hp>0){if(q.s.energy<5){q.openQuiz();const m=q.modal;q.answerQuiz(m.order.findIndex(i=>i===m.question.correct));q.closeQuiz();}q.attack();tick(.34);}}
+ for(const enemy of q.enemies.filter(e=>e.type==='thorn')){q.player.x=enemy.x-90;q.player.y=568;q.player.dir=1;while(enemy.hp>0){if(q.s.energy<CORE.ENERGY.attack){q.openQuiz();const m=q.modal;q.answerQuiz(m.order.findIndex(i=>i===m.question.correct));q.closeQuiz();}q.attack();tick(.34);}}
  q.leaveArena();for(const x of [2580,2850,3230]){q.player.x=x;q.interact();finishLearning();}q.player.x=2410;q.interact();closeDialog();
  assert.equal(q.s.quest,3);closeReward();q.player.x=3440;q.interact();closeDialog();
  q.player.x=3780;q.player.y=568;q.player.onGround=true;q.jump();tick(.8);assert.equal(q.player.y,478,'jump can land on the first record platform');
@@ -60,8 +60,8 @@ test('생성 이미지 렌더링·키보드·조이패드·퀘스트 5개와 엔
  assert.equal(q.modal.type,'lesson');q.continueLesson();q.answerLearning(q.modal.order.findIndex(i=>i===q.modal.question.correct));q.nextLearning();assert.ok(q.modal.question.diagram);snapshot('08-observation-record');const wrongRecord=q.modal.order.findIndex(i=>i!==q.modal.question.correct);q.answerLearning(wrongRecord);assert.ok(q.modal.feedback);finishLearning();assert.equal(q.s.quest,4);closeReward();closeDialog();
  q.player.x=4270;q.player.y=568;q.interact();closeDialog();assert.ok(q.s.accepted);
  q.player.x=4425;q.interact();assert.equal(q.modal.type,'portal');q.enterPortal();const boss=q.enemies.find(e=>e.type==='boss');q.player.x=boss.x-110;q.player.dir=1;q.player.y=568;tick(.05);snapshot('09-boss');
- while(boss.hp>0){if(q.s.energy<20){q.openQuiz();const m=q.modal;q.answerQuiz(m.order.findIndex(i=>i===m.question.correct));q.closeQuiz();}q.attack(true);tick(.84);}
- assert.ok(q.s.bossDead);q.leaveArena();q.player.x=4425;q.player.y=568;q.interact();assert.equal(q.modal.type,'plans');snapshot('10-village-actions');q.choosePlan(q.modal.order.findIndex(i=>i>=3));assert.ok(q.modal.wrong);const correct=q.modal.order.map((v,i)=>v<3?i:-1).filter(i=>i>=0);for(const i of correct)q.choosePlan(i);finishLearning();assert.ok(q.s.finished);assert.equal(q.s.practiceDone.length,15);assert.equal(q.s.testAnswers.length,5);closeReward();assert.equal(q.mode,'ending');snapshot('11-first-village-ending');q.save();
+ while(boss.hp>0){if(q.s.energy<CORE.ENERGY.skill){q.openQuiz();const m=q.modal;q.answerQuiz(m.order.findIndex(i=>i===m.question.correct));q.closeQuiz();}q.attack(true);tick(.84);}
+ assert.ok(q.s.bossDead);q.leaveArena();q.player.x=4425;q.player.y=568;q.interact();assert.equal(q.modal.type,'plans');snapshot('10-village-actions');q.choosePlan(q.modal.order.findIndex(i=>i>=3));assert.ok(q.modal.wrong);const correct=q.modal.order.map((v,i)=>v<3?i:-1).filter(i=>i>=0);for(const i of correct)q.choosePlan(i);finishLearning();assert.ok(q.s.finished);assert.equal(q.s.practiceDone.length,16);assert.equal(q.s.testAnswers.length,5);closeReward();assert.equal(q.mode,'ending');snapshot('11-first-village-ending');q.save();
  assert.deepEqual(Array.from(q.s.completed),[0,1,2,3,4]);
 });
 
@@ -93,13 +93,12 @@ test('기존 저장을 보존해 캐릭터를 만들고 포탈에서 준비·퇴
  createProfile('  새봄  ',3,0);assert.equal(q.s.playerName,'새봄');q.finishIntro();
  q.s.quest=1;q.s.accepted=true;q.s.learned=1;q.startPractice(1,[0]);finishLearning();q.player.x=1265;q.s.hp=2;q.s.energy=0;q.syncCamera();q.interact();assert.equal(q.modal.type,'portal');
  q.enterPortal();assert.equal(q.encounter,null,'empty energy keeps the player in preparation');
- q.render();q.hits.find(h=>h.label==='잠깐 쉬기').fn();assert.equal(q.s.hp,6);
- q.render();q.hits.find(h=>h.label==='문제로 기력 채우기').fn();assert.equal(q.modal.type,'quiz');
- q.answerQuiz(q.modal.order.findIndex(i=>i===q.modal.question.correct));q.closeQuiz();assert.equal(q.modal.type,'portal','quiz returns to preparation');assert.equal(q.s.energy,40);
+ assert.equal(q.s.hp,6,'portal preparation rests automatically');q.render();assert.ok(!q.hits.some(h=>h.label==='잠깐 쉬기'||h.label==='문제로 기력 채우기'));q.hits.find(h=>h.label==='마을에서 더 준비하기').fn();q.openQuiz();assert.equal(q.modal.type,'quiz');
+ q.answerQuiz(q.modal.order.findIndex(i=>i===q.modal.question.correct));q.closeQuiz();assert.equal(q.modal,null);assert.equal(q.s.energy,20);q.interact();assert.equal(q.modal.type,'portal');
  q.enterPortal();assert.ok(q.encounter);assert.equal(q.activeEnemies().length,4);assert.equal(q.s.x,1265,'saving in an arena remembers the village entrance');
  const foe=q.activeEnemies()[0];q.player.x=foe.x-75;q.player.dir=1;q.attack();tick(.34);q.attack();tick(.34);assert.equal(foe.hp,0);
  q.leaveArena();assert.equal(q.player.x,1265);assert.equal(q.activeEnemies().length,0);assert.equal(q.s.killed.length,1);
- q.interact();q.enterPortal();assert.equal(q.activeEnemies().filter(e=>e.hp>0).length,3,'retreat preserves defeated monsters');
+ q.openQuiz();q.answerQuiz(q.modal.order.findIndex(i=>i===q.modal.question.correct));q.closeQuiz();q.interact();q.enterPortal();assert.equal(q.activeEnemies().filter(e=>e.hp>0).length,3,'retreat preserves defeated monsters');
  snapshot('27-female-arena-phone',932,430);q.leaveArena();q.save();
  const restored=new CORE.Adventure(JSON.parse(e.storage.get('five-villages-sun-v1')));assert.equal(restored.s.playerName,'새봄');assert.equal(restored.s.hair,3);assert.equal(restored.s.x,1265);assert.equal(restored.s.killed.length,1);
  const old=new CORE.Adventure({version:1,quest:3,accepted:true,introSeen:true,x:3600,records:['record-0']});assert.equal(old.s.profileReady,false);assert.equal(old.s.quest,3);assert.deepEqual(old.s.records,['record-0']);
@@ -140,4 +139,13 @@ test('최종 확인은 첫 답을 보존하며 다른 문항의 재확인 뒤에
  const e=await engine(),{q,createProfile,finishLearning,tick,snapshot}=e;q.start(true);createProfile();q.finishIntro();Object.assign(q.s,{quest:4,learned:4,accepted:true,bossDead:true,plans:['shade','water','help']});q.startPractice(4);finishLearning();q.openFinal(()=>{q.s.finished=true;});
  for(let i=0;i<5;i++){const m=q.modal;assert.equal(m.type,'test');const pick=m.order.findIndex(a=>i===2?a!==m.question.correct:a===m.question.correct);q.answerLearning(pick);const recorded=q.s.testAnswers[i];q.answerLearning(m.order.findIndex(a=>a===m.question.correct));assert.equal(q.s.testAnswers[i],recorded);if(i===3){tick(1);snapshot('47-final-data-question');}q.nextLearning();}
  assert.equal(q.modal.type,'testReport');assert.equal(q.s.finished,false);snapshot('48-test-report-tablet',1024,768);snapshot('49-test-report-phone',932,430);q.openReview(q.modal.done);assert.equal(q.modal.question.id,'review-health');const m=q.modal;q.answerLearning(m.order.findIndex(i=>i!==m.question.correct));assert.equal(q.s.finished,false);assert.equal(q.s.testReviewed.length,0);finishLearning();assert.equal(q.s.finished,true);assert.equal(q.s.testReviewed.length,1);assert.equal(q.s.testAnswers.filter((a,i)=>a===CORE.FINAL_TEST[i].correct).length,4,'review does not inflate first score');
+});
+
+
+test('오른쪽 아래 기본 버튼이 대화·공격으로 바뀌고 메뉴 X는 터치로 닫힌다',async()=>{
+ const e=await engine(),{q,createProfile,closeDialog,key,pointer,snapshot,box}=e;q.start(true);createProfile('이름여덟글자테스트');q.finishIntro();q.player.x=320;q.render();
+ let h=q.hits.find(h=>h.label==='대화'&&h.x>q.W-180);assert.ok(h);assert.ok(!q.hits.some(h=>h.label==='대화'&&Math.abs(h.x+h.w/2-q.W/2)<80));const energy=q.s.energy;pointer('pointerdown',40,h.x+h.w/2,h.y+h.h/2);pointer('pointerup',40,h.x+h.w/2,h.y+h.h/2);assert.equal(q.modal.type,'dialog');assert.equal(q.s.energy,energy);closeDialog();
+ q.player.x=700;q.s.accepted=false;q.render();assert.ok(q.hits.some(h=>h.label==='공격'&&h.hold==='attack'));key('KeyZ',.04);assert.equal(q.s.energy,energy-10);q.s.quest=2;q.s.accepted=true;q.player.cooldown=0;q.attack(true);assert.equal(q.s.energy,energy-35);
+ key('Escape');assert.equal(q.modal.type,'menu');snapshot('56-tablet-menu-close',1024,768);h=q.hits.find(h=>h.label==='메뉴 닫기');assert.ok(h);const cx=(h.x+h.w/2)/q.W*box.width,cy=(h.y+h.h/2)/q.H*box.height;pointer('pointerdown',41,cx,cy);pointer('pointerup',41,cx,cy);assert.equal(q.modal,null);snapshot('57-hud-name-frame',1280,720);
+ q.player.x=320;q.s.quest=0;q.s.accepted=false;q.render();key('KeyZ');assert.equal(q.modal.type,'dialog','Z follows the visible conversation action');snapshot('58-dialog-no-hint');
 });

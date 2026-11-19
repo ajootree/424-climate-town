@@ -1,4 +1,5 @@
 export const VERSION=1;
+export const ENERGY={attack:10,skill:25,charge:20};
 export const HAIRSTYLES=['짧은 삐침','일자 단발','둥근 곱슬','가르마 묶음'];
 export const EXPRESSIONS=['살짝 미소','활짝 웃음','호기심','씩씩하게'];
 export const QUESTS=[
@@ -27,29 +28,30 @@ export const QUESTIONS=[
 ];
 export const LESSONS=[
  {title:'폭염의 뜻',role:'촌장님',art:'chief',source:'광장의 단서 세 곳',summary:['폭염은 지나친 더위예요.','더위 때문에 생활이 불편해져요.'],cards:[['caretaker','지나친 더위'],['platform','생활의 불편']],practice:[
-  {id:'heat-clues',q:'주민들이 광장을 떠난 까닭은?',a:['더위를 피해 쉬려고','눈이 길을 막아서','추위 때문에 옷을 더 입으려고'],correct:0,art:'caretaker',why:'빈 벤치와 지친 주민은 더위로 야외 활동이 힘들다는 단서야.'},
-  {id:'heat-name',q:'세 단서가 가리키는 현상은?',a:['폭염: 지나친 더위','지나친 추위','지나치게 많은 눈'],correct:0,art:'record',why:'폭염은 지나친 더위로 생활이 불편해지는 현상이야.'},
-  {id:'heat-transfer',q:'맑은 날이면 모두 폭염일까?',a:['햇빛이 있으면 모두 폭염','지나친 더위인지 살펴야 해','여름은 날마다 폭염'],correct:1,art:'hero',why:'맑다는 것과 지나치게 덥다는 것은 달라. 생활의 불편도 살펴봐.'}
+  {id:'heat-clues',task:'빈 광장의 까닭 고르기',q:'주민들이 광장을 떠난 까닭은?',a:['더위를 피해 쉬려고','눈이 길을 막아서','추위 때문에 옷을 더 입으려고'],correct:0,art:'caretaker',why:'빈 벤치와 지친 주민은 더위로 야외 활동이 힘들다는 단서야.'},
+  {id:'heat-name',task:'날씨의 모습 구분하기',q:'세 단서가 가리키는 날씨의 모습은?',a:['지나친 더위','지나친 추위','지나치게 많은 눈'],correct:0,art:'record',why:'지나친 더위 때문에 생활이 불편해지고 있어.'},
+  {id:'heat-label',task:'현상 이름 고르기',q:'이처럼 지나친 더위로 생활이 불편한 현상의 이름은?',a:['폭염','한파','폭설'],correct:0,art:'chief',why:'이 현상의 이름은 폭염이야. 지나친 더위라는 모습과 이름을 연결해 봐.'},
+  {id:'heat-transfer',task:'맑은 날 상황 판단하기',q:'맑은 날이면 모두 폭염일까?',a:['햇빛이 있으면 모두 폭염','지나친 더위인지 살펴야 해','여름은 날마다 폭염'],correct:1,art:'hero',why:'맑다는 것과 지나치게 덥다는 것은 달라. 생활의 불편도 살펴봐.'}
  ]},
  {title:'사람의 활동에 주는 영향',role:'배달원',art:'courier',source:'배달 시간표와 보급 상자',summary:['폭염에는 야외에서 일하기 힘들어요.','활동하는 시간과 장소를 조정해요.'],cards:[['courier','야외 활동이 힘듦'],['crate','활동 계획 바꾸기']],practice:[
-  {id:'delivery-time',q:'배달 시간을 어떻게 바꿀까?',a:['가장 더운 한낮에 몰아서','덜 더운 시간에 나눠서','더위를 참고 쉬지 않고'],correct:1,art:'courier',why:'더운 시간의 야외 일을 줄이는 계획이야. 힘들면 쉬고 도움받자.'},
-  {id:'delivery-impact',q:'배달원이 힘든 건 어떤 영향일까?',a:['더위 때문에 밖에서 일하기 어려움','눈 때문에 길이 막힘','추위로 물이 얼어붙음'],correct:0,art:'crate',why:'기후변화 현상은 일과 이동 같은 사람의 활동을 불편하게 해.'},
-  {id:'delivery-transfer',q:'상자를 받을 집에서도 달라지는 일은?',a:['폭염은 집 생활과 관계없음','더위를 피해 냉방을 더 사용','추위로 물이 얼어붙음'],correct:1,art:'crate',why:'폭염은 바깥일뿐 아니라 집에서 냉방을 사용하는 데도 영향을 줘.'}
+  {id:'delivery-time',task:'배달 시간 정하기',q:'배달 시간을 어떻게 바꿀까?',a:['가장 더운 한낮에 몰아서','덜 더운 시간에 나눠서','더위를 참고 쉬지 않고'],correct:1,art:'courier',why:'더운 시간의 야외 일을 줄이는 계획이야. 힘들면 쉬고 도움받자.'},
+  {id:'delivery-impact',task:'일터의 어려움 확인하기',q:'배달원이 힘든 건 어떤 영향일까?',a:['더위 때문에 밖에서 일하기 어려움','눈 때문에 길이 막힘','추위로 물이 얼어붙음'],correct:0,art:'crate',why:'기후변화 현상은 일과 이동 같은 사람의 활동을 불편하게 해.'},
+  {id:'delivery-transfer',task:'집에서의 변화 확인하기',q:'상자를 받을 집에서도 달라지는 일은?',a:['폭염은 집 생활과 관계없음','더위를 피해 냉방을 더 사용','추위로 물이 얼어붙음'],correct:1,art:'crate',why:'폭염은 바깥일뿐 아니라 집에서 냉방을 사용하는 데도 영향을 줘.'}
  ]},
  {title:'건강 피해와 쉼터',role:'쉼터 선생님',art:'caretaker',source:'물·컵·쉼터 천을 쓰는 까닭',summary:['지나친 더위는 건강에도 피해를 줘요.','쉬고 물을 마시며, 힘들면 도움받아요.'],cards:[['water','물 마시기'],['shadeAction','그늘에서 쉬기'],['helpAction','어른에게 도움']],practice:[
-  {id:'shelter-water',q:'찾은 물을 어떻게 쓸까?',a:['물을 마실 곳에 놓기','아무도 못 마시게 숨기기','물을 안 마시고 계속 뛰기'],correct:0,art:'water',choiceArts:['drinkAction','refuseAction','runAction'],why:'쉼터에서 물을 마실 수 있게 해. 더위에 지친 몸을 돌보는 거야.'},
-  {id:'shelter-help',q:'컵을 옮기는데 친구가 어지럽대!',a:['계속 참으라고 하기','달리면 나아진다고 하기','활동을 멈추고 어른에게 알리기'],correct:2,art:'caretaker',choiceArts:['endureAction','runAction','helpAction'],why:'더위로 힘들 때는 활동을 멈추고 쉬면서 어른에게 도움을 요청해.'},
-  {id:'shelter-shade',q:'쉼터 천으로 어디를 가릴까?',a:['쉴 자리에 그늘 만들기','햇볕 아래 계속 뛰게 하기','힘들어도 쉬지 못하게 하기'],correct:0,art:'shadeAction',choiceArts:['shadeAction','runAction','endureAction'],why:'그늘에서 쉬게 하면 지금의 더위 피해를 줄이는 데 도움이 돼.'}
+  {id:'shelter-water',task:'물 놓을 곳 고르기',q:'찾은 물을 어떻게 쓸까?',a:['물을 마실 곳에 놓기','아무도 못 마시게 숨기기','물을 안 마시고 계속 뛰기'],correct:0,art:'water',choiceArts:['drinkAction','refuseAction','runAction'],why:'쉼터에서 물을 마실 수 있게 해. 더위에 지친 몸을 돌보는 거야.'},
+  {id:'shelter-help',task:'친구 도울 방법 고르기',q:'컵을 옮기는데 친구가 어지럽대!',a:['계속 참으라고 하기','달리면 나아진다고 하기','활동을 멈추고 어른에게 알리기'],correct:2,art:'caretaker',choiceArts:['endureAction','runAction','helpAction'],why:'더위로 힘들 때는 활동을 멈추고 쉬면서 어른에게 도움을 요청해.'},
+  {id:'shelter-shade',task:'천으로 그늘 만들기',q:'쉼터 천을 어떻게 쓰는 게 좋을까?',a:['위쪽에 천을 쳐 그늘 만들기','천으로 사방을 빈틈없이 막기','천을 여러 겹 두르기'],correct:0,art:'clothShade',choiceArts:['clothShade','clothClosed','clothLayers'],why:'천으로 햇볕을 가리고 바람은 통하게 해. 사방을 막거나 겹겹이 두르면 더울 수 있어.'}
  ]},
  {title:'날씨와 기후, 오랜 기록',role:'관측소 선생님',art:'observer',source:'찾아온 관측 기록 세 장',summary:['날씨는 짧은 기간의 상태예요.','기후는 약 30년처럼 오랜 기간의 날씨예요.','기후변화는 이런 기후가 오랫동안 달라지는 거예요.'],cards:[['record','오늘의 날씨'],['observer','오랜 기간의 기후']],practice:[
-  {id:'records-period',q:'기후를 살피려면 어떤 기록이 필요할까?',a:['오늘 하루의 기온만','약 30년처럼 오랜 날씨 기록','사진 한 장만'],correct:1,art:'record',why:'기후는 약 30년처럼 오랜 기간 나타난 날씨의 상태야.'},
-  {id:'records-compare',q:'이 자료에서는 어느 쪽이 더 많을까?',a:['예전의 폭염 일수','최근의 폭염 일수','둘이 같음'],correct:1,art:'record',diagram:[6,12],why:'이 가상 자료에서는 최근의 평균 폭염 일수가 더 많아.'},
-  {id:'records-transfer',q:'오늘 선선하면 기후변화가 없다는 뜻일까?',a:['하루만으로 정할 수 없어','선선한 하루면 기후변화가 없어','오늘 기록만 남기면 충분해'],correct:0,art:'observer',why:'기후변화는 오랜 기후가 달라지는 것. 하루만으로 정할 수 없어.'}
+  {id:'records-period',task:'관측 기간 고르기',q:'기후를 살피려면 어떤 기록이 필요할까?',a:['오늘 하루의 기온만','약 30년처럼 오랜 날씨 기록','사진 한 장만'],correct:1,art:'record',why:'기후는 약 30년처럼 오랜 기간 나타난 날씨의 상태야.'},
+  {id:'records-compare',task:'관측 그래프 비교하기',q:'이 자료에서는 어느 쪽이 더 많을까?',a:['예전의 폭염 일수','최근의 폭염 일수','둘이 같음'],correct:1,art:'record',diagram:[6,12],why:'이 가상 자료에서는 최근의 평균 폭염 일수가 더 많아.'},
+  {id:'records-transfer',task:'날씨와 기후 구분하기',q:'오늘 선선하면 기후변화가 없다는 뜻일까?',a:['하루만으로 정할 수 없어','선선한 하루면 기후변화가 없어','오늘 기록만 남기면 충분해'],correct:0,art:'observer',why:'기후변화는 오랜 기후가 달라지는 것. 하루만으로 정할 수 없어.'}
  ]},
  {title:'지금의 대비와 꾸준한 실천',role:'촌장님',art:'chief',source:'수호석 앞에서 고른 마을 대응',summary:['쉼터와 물은 지금의 피해에 대비해요.','자원과 에너지를 아끼는 실천도 이어가요.'],cards:[['shadeAction','지금 피해 줄이기'],['recycleBadge','자원·에너지 아끼기']],practice:[
-  {id:'response-now',q:'그늘 쉼터는 무엇을 도와줄까?',a:['지금의 더위 피해 줄이기','날씨를 바로 바꾸기','더위에도 계속 뛰게 하기'],correct:0,art:'shadeAction',why:'쉼터는 당장의 더위로부터 사람을 돕는 대비 방법이야.'},
-  {id:'response-long',q:'집에서 꾸준히 할 수 있는 일은?',a:['쓸 수 있는 물건 다시 쓰기','더워도 냉방을 모두 끄고 참기','일회용품을 더 많이 쓰기'],correct:0,art:'recycleBadge',why:'물건을 다시 쓰면 새 물건을 만드는 데 드는 자원과 에너지를 아낄 수 있어.'},
-  {id:'response-transfer',q:'수호석을 찾으면 현실의 기후도 바로 돌아올까?',a:['계속 실천할 필요가 없어','생활에서 꾸준히 실천해야 해','오늘 날씨가 바로 바뀌어'],correct:1,art:'stone',why:'게임의 저주를 풀어도 현실의 기후는 바로 바뀌지 않아. 꾸준한 실천이 필요해.'}
+  {id:'response-now',task:'쉼터의 도움 확인하기',q:'그늘 쉼터는 무엇을 도와줄까?',a:['지금의 더위 피해 줄이기','날씨를 바로 바꾸기','더위에도 계속 뛰게 하기'],correct:0,art:'shadeAction',why:'쉼터는 당장의 더위로부터 사람을 돕는 대비 방법이야.'},
+  {id:'response-long',task:'꾸준한 실천 고르기',q:'집에서 꾸준히 할 수 있는 일은?',a:['쓸 수 있는 물건 다시 쓰기','더워도 냉방을 모두 끄고 참기','일회용품을 더 많이 쓰기'],correct:0,art:'recycleBadge',why:'물건을 다시 쓰면 새 물건을 만드는 데 드는 자원과 에너지를 아낄 수 있어.'},
+  {id:'response-transfer',task:'게임과 현실 구분하기',q:'수호석을 찾으면 현실의 기후도 바로 돌아올까?',a:['계속 실천할 필요가 없어','생활에서 꾸준히 실천해야 해','오늘 날씨가 바로 바뀌어'],correct:1,art:'stone',why:'게임의 저주를 풀어도 현실의 기후는 바로 바뀌지 않아. 꾸준한 실천이 필요해.'}
  ]}
 ];
 export const FINAL_TEST=[
@@ -85,7 +87,7 @@ export class Adventure {
  canComplete(){return this.evidenceReady()&&this.lessonComplete()&&(this.s.quest<4||this.hasPassedTest());}
  complete(){if(!this.canComplete())return false;const q=this.s.quest;this.s.completed.push(q);this.s.xp+=QUESTS[q].reward;this.s.hp=6;this.s.energy=100;this.s.accepted=false;if(q===4){this.s.finished=true;}else this.s.quest++;return true;}
  spend(amount){if(this.s.energy<amount)return false;this.s.energy-=amount;return true;}
- charge(correct){if(correct)this.s.energy=Math.min(100,this.s.energy+40);return this.s.energy;}
+ charge(correct){if(correct)this.s.energy=Math.min(100,this.s.energy+ENERGY.charge);return this.s.energy;}
  hurt(){this.s.hp=Math.max(0,this.s.hp-1);return this.s.hp;}
  respawn(){this.s.hp=6;this.s.energy=100;this.s.x=this.s.checkpoint;}
  quizPool(){return QUESTIONS.filter(q=>q.level<=this.s.learned);}
