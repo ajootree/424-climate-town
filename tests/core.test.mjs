@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Adventure,QUESTS,QUESTIONS,LESSONS,FINAL_TEST,REVIEW_TEST,ENERGY} from '../core.js';
+import {Adventure,QUESTS,QUESTIONS,LESSONS,FINAL_TEST,REVIEW_TEST,ENERGY,COLD} from '../core.js';
 
 test('기력은 정답20 회복, 기본10·스킬25 소모로 조정한다',()=>{
  const g=new Adventure();assert.equal(ENERGY.attack,10);assert.equal(ENERGY.skill,25);assert.equal(ENERGY.charge,20);assert.ok(g.spend(100));assert.equal(g.spend(10),false);assert.equal(g.charge(false),0);assert.equal(g.charge(true),20);assert.ok(g.spend(10));assert.equal(g.s.energy,10);assert.equal(g.spend(25),false);for(let i=0;i<7;i++)g.charge(true);assert.equal(g.s.energy,100);
@@ -54,3 +54,19 @@ test('필수 선택16개·최종확인5개·재확인5개는 서로 다른 상�
 });
 
 test('더위의 모습과 폭염 이름을 나누고 천 문제는 천의 사용만 비교한다',()=>{const first=LESSONS[0].practice;const a=first.findIndex(q=>q.id==='heat-name');assert.ok(!first[a].a.some(v=>v.includes('폭염:')));assert.equal(first[a+1].id,'heat-label');assert.equal(first[a+1].a[first[a+1].correct],'폭염');const cloth=LESSONS[2].practice.find(q=>q.id==='shelter-shade');assert.ok(cloth.a.every(v=>v.includes('천')));assert.ok(!cloth.a.some(v=>/뛰|쉬지/.test(v)));assert.deepEqual(cloth.choiceArts,['clothShade','clothClosed','clothLayers']);});
+
+
+test('옛 수호석 완료 저장은 생각과 가호를 거쳐 최대 기력120을 한 번만 받는다',()=>{
+ const g=new Adventure({version:1,finished:true,quest:4,completed:[0,1,2,3,4],testAnswers:[1,0,2,0,1],playerName:'구름',energy:70});assert.deepEqual(g.s.stones,[0]);assert.equal(g.maxEnergy(),100);assert.equal(g.bless(),false);assert.equal(g.advanceVillage(),false);assert.equal(g.reflect(),true);assert.equal(g.reflect(),false);assert.equal(g.bless(),true);assert.equal(g.bless(),false);assert.equal(g.maxEnergy(),120);assert.equal(g.s.energy,120);g.spend(10);g.charge(true);assert.equal(g.s.energy,120);g.respawn();assert.equal(g.s.energy,120);assert.equal(new Adventure(JSON.parse(g.serialize())).maxEnergy(),120);
+});
+test('온샘마을 이동은 프로필·가호·수호석과 첫 평가를 보존하고 새 학습을 시작한다',()=>{
+ const g=new Adventure({version:1,finished:true,quest:4,completed:[0,1,2,3,4],testAnswers:[1,0,2,0,1],practiceDone:['heat-clues'],playerName:'구름',hair:2,color:3,xp:300,profileReady:true,appearanceReady:true,styleVersion:2});g.reflect();g.bless();assert.ok(g.advanceVillage());assert.equal(g.advanceVillage(),false);assert.equal(g.s.chapter,1);assert.equal(g.s.quest,0);assert.equal(g.s.finished,false);assert.equal(g.s.playerName,'구름');assert.equal(g.s.hair,2);assert.equal(g.s.color,3);assert.equal(g.s.xp,300);assert.equal(g.s.energy,120);assert.deepEqual(g.s.testAnswers,[]);assert.deepEqual(g.s.practiceDone,[]);assert.deepEqual(g.s.journeys[0].testAnswers,[1,0,2,0,1]);assert.equal(g.content().name,'온샘마을');assert.equal(g.recordPractice('heat-clues',true),false);assert.equal(g.recordPractice('cold-clues',true),true);const r=new Adventure(JSON.parse(g.serialize()));assert.deepEqual(r.s.stones,[0]);assert.deepEqual(r.s.blessings,[0]);assert.equal(r.content(),COLD);assert.equal(r.maxEnergy(),120);
+});
+test('한파 마을도 다섯 부탁·필수16개·새 확인5개와 오답 재확인 후 두 번째 수호석을 준다',()=>{
+ const g=new Adventure({version:1,chapter:1,blessings:[0],stones:[0],reflected:[0]});assert.equal(COLD.lessons.flatMap(l=>l.practice).length,16);const ids=[...COLD.lessons.flatMap(l=>l.practice),...COLD.final,...COLD.review].map(q=>q.id);assert.equal(new Set(ids).size,26);
+ for(let stage=0;stage<5;stage++){
+  g.accept();if(stage===0)['empty','notice','resident'].forEach(x=>g.collect('clues',x));if(stage===1){['a','b'].forEach(x=>g.collect('crates',x));for(let i=0;i<4;i++)g.kill('dust-'+i);}if(stage===2){['water','cups','cloth'].forEach(x=>g.collect('supplies',x));for(let i=0;i<3;i++)g.kill('thorn-'+i);}if(stage===3)[0,1,2].forEach(x=>g.collect('records','record-'+x));if(stage===4){g.s.bossDead=true;['shade','water','help'].forEach(x=>g.collect('plans',x));}
+  assert.equal(g.complete(),false);COLD.lessons[stage].practice.forEach(q=>g.recordPractice(q.id,true));if(stage===4){COLD.final.forEach((q,i)=>g.recordTestAnswer(i,i===3?(q.correct+1)%3:q.correct));assert.equal(g.testScore(),4);assert.equal(g.complete(),false);assert.equal(g.recordReview(3,true),true);assert.equal(g.testScore(),4);}assert.ok(g.complete());
+ }
+ assert.deepEqual(g.s.stones,[0,1]);assert.equal(g.s.finished,true);assert.ok(g.reflect());assert.ok(g.bless());assert.equal(g.maxEnergy(),140);assert.equal(g.advanceVillage(),false);
+});
