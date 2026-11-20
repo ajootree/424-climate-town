@@ -1,4 +1,4 @@
-import {Adventure, QUESTS, QUESTIONS, HAIRSTYLES, HAIR_COLORS, LESSONS, FINAL_TEST, REVIEW_TEST, ENERGY, clamp} from './core.js?v=villages-8';
+import {Adventure, QUESTS, QUESTIONS, HAIRSTYLES, HAIR_COLORS, LESSONS, FINAL_TEST, REVIEW_TEST, ENERGY, clamp} from './core.js?v=panorama-9';
 
 const canvas=document.querySelector('#game'),ctx=canvas.getContext('2d',{alpha:false});
 const SAVE_KEY='five-villages-sun-v1';
@@ -18,7 +18,29 @@ let player={x:s.x,y:ground,vx:0,vy:0,dir:1,onGround:true,attack:0,cooldown:0,inv
 let audioContext=null,autoSaveTime=0,interactionHint=null;
 const images={},atlases={};
 const MOVE_SPEED=190,TYPE_SPEED=22;
-const ARENA_WIDTH=2200;
+const ARENA_WIDTH=2200,WORLD_WIDTH=5300;
+const panoramaInfo={};
+// Each generated scene is used once, in world order; only their open edges overlap.
+function composePanorama(keys,width,groundEdges=[]){
+ const out=document.createElement('canvas');out.width=width;out.height=720;const c=out.getContext('2d');
+ const overlap=keys.length>1?200:0,sectionWidth=(width+overlap*(keys.length-1))/keys.length;
+ keys.forEach((key,i)=>{
+  const img=images[key],layer=document.createElement('canvas');layer.width=sectionWidth;layer.height=720;const lc=layer.getContext('2d');
+  const scale=Math.max(sectionWidth/img.width,720/img.height),sourceH=720/scale,sourceW=sectionWidth/scale;
+  const sy=clamp((groundEdges[i]??.84)*img.height-605/scale,0,img.height-sourceH);
+  lc.drawImage(img,0,sy,sourceW,sourceH,0,0,sectionWidth,720);
+  if(i){const fade=lc.createLinearGradient(0,0,overlap,0);fade.addColorStop(0,'rgba(255,255,255,0)');fade.addColorStop(1,'rgba(255,255,255,1)');lc.globalCompositeOperation='destination-in';lc.fillStyle=fade;lc.fillRect(0,0,sectionWidth,720);}
+  c.drawImage(layer,i*(sectionWidth-overlap),0);
+ });
+ panoramaInfo[width===WORLD_WIDTH?(keys[0]==='bg'?'sunVillage':'coldVillage'):(keys[0]==='arena'?'sunArena':'coldArena')]={width,height:720,sources:[...keys]};return out;
+}
+function buildBackgrounds(){
+ images.bg=composePanorama(['bg','bgMiddle','bgEast'],WORLD_WIDTH,[.82,.82,.82]);
+ images.winterBg=composePanorama(['winterBg','winterMiddle','winterEast'],WORLD_WIDTH,[.85,.815,.84]);
+ images.arena=composePanorama(['arena'],ARENA_WIDTH);
+ images.winterArena=composePanorama(['winterArena'],ARENA_WIDTH);
+ for(const key of ['bgMiddle','bgEast','winterMiddle','winterEast'])delete images[key];
+}
 let encounter=null,profileError='',emotion={face:0,t:0},bossMagic=[];
 const BOSS={bodyRadius:90,contactRadius:38,slamRadius:135,warnTime:1.5,fallTime:.75,impactRadius:62};
 function react(face,duration=1.2){emotion={face,t:duration};}
@@ -46,7 +68,7 @@ function introText(){return (intro[scene].text||'').replaceAll('{name}',s.player
 function introDelay(){return intro[scene].ruined?.7:0;}
 function advanceScene(){transitionTime=sceneTime;if(++scene>=intro.length)finishIntro();else sceneTime=0;}
 let walkDistance=0;
-function syncCamera(){cam=clamp(player.x-W*.42,0,Math.max(0,(encounter?ARENA_WIDTH:5300)-W));}
+function syncCamera(){cam=clamp(player.x-W*.42,0,Math.max(0,(encounter?ARENA_WIDTH:WORLD_WIDTH)-W));}
 function typedCount(t,elapsed){return Math.min(Array.from(t).length,Math.floor(Math.max(0,elapsed)*TYPE_SPEED));}
 function typed(t,elapsed){return Array.from(t).slice(0,typedCount(t,elapsed)).join('');}
 function typingDone(t,elapsed){return typedCount(t,elapsed)>=Array.from(t).length;}
@@ -304,7 +326,11 @@ function drawBossMagic(groundLayer){
  }
 }
 
-function drawBackground(){const img=cold()?(encounter?images.winterArena:images.winterBg):(encounter?images.arena:images.bg);const scale=H/img.height,w=img.width*scale;const offset=cam;const start=Math.floor(offset/w)-1;for(let i=start;i<(offset+W)/w+1;i++){const x=i*w-offset;ctx.save();if(Math.abs(i)%2){ctx.translate(x+w,0);ctx.scale(-1,1);ctx.drawImage(img,0,0,w,H);}else ctx.drawImage(img,x,0,w,H);ctx.restore();}if(!s.finished){ctx.fillStyle=cold()?'rgba(110,154,187,.035)':'rgba(214,147,69,.075)';ctx.fillRect(0,0,W,H);}}
+function drawBackground(){
+ const img=cold()?(encounter?images.winterArena:images.winterBg):(encounter?images.arena:images.bg);
+ const sx=clamp(cam,0,img.width-W);ctx.drawImage(img,sx,0,W,H,0,0,W,H);
+ if(!s.finished){ctx.fillStyle=cold()?'rgba(110,154,187,.035)':'rgba(214,147,69,.075)';ctx.fillRect(0,0,W,H);}
+}
 function drawWorld(){drawBackground();drawBossMagic(true);for(const p of encounter?[]:platforms){spriteRect('platform',p.x-cam,p.y-14,p.w,52);}
  for(const n of npcs()){const x=n.x-cam;if(x<-150||x>W+150)continue;sprite(n.art,x,ground,n.id==='chief'?115:108);outlined(n.role,x,ground+23,20);hits.push({x:x-55,y:ground-120,w:110,h:150,fn:()=>{if(Math.abs(player.x-n.x)<140)talk(n);else notify('가까이 다가가서 이야기해요.',1.8);},label:n.role});const index=['chief','courier','caretaker','observer','chief'][s.quest];if(!s.finished&&!s.accepted&&n.id===index){outlined('!',x,ground-143+Math.sin(time*3)*4,38,'#ffe7a0');}}
  if(!encounter&&s.completed.includes(1)){sprite('crate',2290-cam,ground,52);sprite('crate',2333-cam,ground,44);}if(!encounter&&(s.completed.includes(2)||s.quest===2)){if(cold()){if(s.supplies.includes('water'))sprite('coldCoat',2455-cam,ground,65);if(s.supplies.includes('cups'))sprite('coldGloves',2530-cam,ground,50);if(s.supplies.includes('cloth'))sprite('coldPipe',2500-cam,ground,80);}else{if(s.supplies.includes('cloth'))sprite('clothShade',2500-cam,ground,150);if(s.supplies.includes('water'))sprite('water',2455-cam,ground,65);if(s.supplies.includes('cups'))sprite('crate',2530-cam,ground,50);}}
@@ -436,6 +462,6 @@ async function load(){const fontReady=document.fonts?Promise.all([
  document.fonts.load('700 28px "NEXON Lv1 Gothic"','가나다 ABC 123'),
  document.fonts.load('400 28px "NEXON Lv2 Gothic"','가나다 ABC 123'),
  document.fonts.load('700 28px "NEXON Lv2 Gothic"','가나다 ABC 123')
-]).catch(error=>console.warn('Using fallback fonts:',error)):Promise.resolve();const files={ui:'ui.png',bg:'village-bg.png',map:'world-map.png',sprites:'sprites.png',controls:'controls.png',frames:'frames.png',actions:'actions.png',ribbon:'ribbon.png',adventurers:'adventurers-portals.png',arena:'portal-forest.png',heads:'character-heads.png',headsBlack:'character-heads-black.png',headsGold:'character-heads-gold.png',headsBlue:'character-heads-blue.png',bodies:'character-bodies-collar.png',ruined:'ruined-map.png',cloth:'cloth-actions.png',magic:'boss-magic.png',winterBg:'winter-village.png',winterArena:'winter-arena.png',winterSprites:'winter-sprites.png',winterMagic:'winter-magic.png'};let n=0;await Promise.all(Object.entries(files).map(([key,file])=>new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>{images[key]=img;document.querySelector('#load-progress').value=++n/Object.keys(files).length*100;resolve();};img.onerror=()=>reject(new Error(file));img.src=`assets/${file}`;})));await fontReady;buildAtlas(images.ribbon,1,1,['ribbon']);buildAtlas(images.sprites,4,4,names);buildAtlas(images.adventurers,2,3,['unused-0','unused-1','unused-2','unused-3','portal','returnPortal'],{portal:[0,790,627,464],returnPortal:[627,790,627,464]});
+]).catch(error=>console.warn('Using fallback fonts:',error)):Promise.resolve();const files={ui:'ui.png',bg:'sun-west.png',bgMiddle:'sun-middle.png',bgEast:'sun-east.png',map:'world-map.png',sprites:'sprites.png',controls:'controls.png',frames:'frames.png',actions:'actions.png',ribbon:'ribbon.png',adventurers:'adventurers-portals.png',arena:'forest-panorama.png',heads:'character-heads.png',headsBlack:'character-heads-black.png',headsGold:'character-heads-gold.png',headsBlue:'character-heads-blue.png',bodies:'character-bodies-collar.png',ruined:'ruined-map.png',cloth:'cloth-actions.png',magic:'boss-magic.png',winterBg:'cold-west.png',winterMiddle:'cold-middle.png',winterEast:'cold-east.png',winterArena:'ice-forest-panorama.png',winterSprites:'winter-sprites.png',winterMagic:'winter-magic.png'};let n=0;await Promise.all(Object.entries(files).map(([key,file])=>new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>{images[key]=img;document.querySelector('#load-progress').value=++n/Object.keys(files).length*100;resolve();};img.onerror=()=>reject(new Error(file));img.src=`assets/${file}`;})));await fontReady;buildBackgrounds();buildAtlas(images.ribbon,1,1,['ribbon']);buildAtlas(images.sprites,4,4,names);buildAtlas(images.adventurers,2,3,['unused-0','unused-1','unused-2','unused-3','portal','returnPortal'],{portal:[0,790,627,464],returnPortal:[627,790,627,464]});
  for(const [color,key] of ['heads','headsBlack','headsGold','headsBlue'].entries())buildAtlas(images[key],4,4,Array.from({length:16},(_,i)=>`head-${color}-${i}`));buildAtlas(images.bodies,4,1,['body-hero','body-walkA','body-walkB','body-attack'],{'body-walkB':[1086,0,500,724],'body-attack':[1586,0,586,724]});attachCharacterAnchors();atlases.sunStone=atlases.stone;atlases.recycleBadge={img:images.ui,x:932,y:565,w:55,h:49};buildAtlas(images.winterSprites,4,4,['coldChief','coldCourier','coldCaretaker','coldObserver','coldDust','coldThorn','coldBoss','coldStone','coldCoat','coldGloves','coldWrap','coldPipe','coldCrop','coldIndoor','coldThin','thought'],{"coldChief":[0,0,313,333],"coldCourier":[313,0,313,333],"coldCaretaker":[626,0,313,333],"coldObserver":[939,0,315,333],"coldDust":[0,333,313,301],"coldThorn":[313,333,313,301],"coldBoss":[610,333,345,301],"coldStone":[980,333,274,301],"coldCoat":[0,634,313,289],"coldGloves":[313,634,313,289],"coldWrap":[626,634,313,289],"coldPipe":[939,634,315,289],"coldCrop":[0,923,313,331],"coldIndoor":[313,923,313,331],"coldThin":[626,923,313,331],"thought":[939,923,315,331]});buildAtlas(images.winterMagic,2,2,['iceSeed','iceWarning','iceImpact','iceCast']);buildAtlas(images.magic,2,2,['magicSeed','magicWarning','magicImpact','magicCast']);buildAtlas(images.cloth,3,1,['clothShade','clothClosed','clothLayers']);buildAtlas(images.controls,3,2,controlNames);buildAtlas(images.actions,3,2,['shadeAction','drinkAction','helpAction','runAction','refuseAction','endureAction']);resize();document.querySelector('#loading').remove();mode='title';requestAnimationFrame(frame);}
 load().catch(e=>{document.querySelector('#loading span').textContent='그림을 불러오지 못했어요. 새로고침해 주세요.';console.error('Asset load failed:',e);});

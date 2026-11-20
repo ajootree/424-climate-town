@@ -10,7 +10,10 @@ for(const file of await readdir(join(root,'assets/fonts')))if(file.endsWith('.wo
 }
 const core=(await readFile(join(root,'core.js'),'utf8')).replaceAll('export ','');
 let js=(await readFile(join(root,'game.js'),'utf8')).replace(/^import .*?;\n/,'');
-const assets={};for(const n of await readdir(join(root,'assets')))if(n.endsWith('.png'))assets[n]='data:image/png;base64,'+(await readFile(join(root,'assets',n))).toString('base64');
+const manifest=js.match(/const files=\{([^}]+)\};let n=0;/)?.[1];
+if(!manifest)throw new Error('Image manifest was not found');
+const activeImages=[...new Set([...manifest.matchAll(/:'([^']+\.png)'/g)].map(m=>m[1]))];
+const assets={};for(const n of activeImages)assets[n]='data:image/png;base64,'+(await readFile(join(root,'assets',n))).toString('base64');
 js=js.replace('img.src=`assets/${file}`;','img.src=EMBEDDED_IMAGES[file];');
 html=html.replace(/\s*<link rel="preload"[^>]*>/g,'').replace(/<link rel="stylesheet" href="style\.css(?:\?[^"]*)?">/,'<style>'+css+'</style>').replace(/<script type="module" src="game\.js(?:\?[^"]*)?"><\/script>/,'<script>const EMBEDDED_IMAGES='+JSON.stringify(assets)+';\n'+core+'\n'+js+'</script>');
 const notice=await readFile(join(root,'assets/fonts/LICENSE.txt'),'utf8');
