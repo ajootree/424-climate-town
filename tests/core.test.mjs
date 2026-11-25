@@ -12,10 +12,10 @@ function learn(g){LESSONS[g.s.quest].practice.forEach(q=>g.recordPractice(q.id,t
 
 test('도입부 뒤 다섯 부탁과 수호석까지 전체 진행 조건을 지킨다',()=>{
  const g=new Adventure();g.accept();['bench','notice','resident'].forEach(id=>g.collect('clues',id));learn(g);if(g.s.quest===4)FINAL_TEST.forEach((q,i)=>g.recordTestAnswer(i,q.correct));assert.ok(g.complete());assert.equal(g.s.quest,1);
- g.accept();g.collect('crates','a');g.collect('crates','b');assert.equal(g.canComplete(),false);for(let i=0;i<4;i++)g.kill(`dust-${i}`);learn(g);if(g.s.quest===4)FINAL_TEST.forEach((q,i)=>g.recordTestAnswer(i,q.correct));assert.ok(g.complete());
- g.accept();['water','cups','cloth'].forEach(id=>g.collect('supplies',id));assert.equal(g.canComplete(),false);for(let i=0;i<3;i++)g.kill(`thorn-${i}`);learn(g);if(g.s.quest===4)FINAL_TEST.forEach((q,i)=>g.recordTestAnswer(i,q.correct));assert.ok(g.complete());
+ g.accept();assert.equal(g.collect('crates','a'),false);for(let i=0;i<4;i++)g.kill(`dust-${i}`);assert.ok(g.reportBattle());assert.ok(g.acceptFollowUp());g.collect('crates','a');g.collect('crates','b');learn(g);if(g.s.quest===4)FINAL_TEST.forEach((q,i)=>g.recordTestAnswer(i,q.correct));assert.ok(g.complete());
+ g.accept();assert.equal(g.collect('supplies','water'),false);for(let i=0;i<3;i++)g.kill(`thorn-${i}`);assert.ok(g.reportBattle());assert.ok(g.acceptFollowUp());['water','cups','cloth'].forEach(id=>g.collect('supplies',id));learn(g);if(g.s.quest===4)FINAL_TEST.forEach((q,i)=>g.recordTestAnswer(i,q.correct));assert.ok(g.complete());
  g.accept();for(let i=0;i<3;i++)g.collect('records',`record-${i}`);learn(g);if(g.s.quest===4)FINAL_TEST.forEach((q,i)=>g.recordTestAnswer(i,q.correct));assert.ok(g.complete());assert.equal(g.s.quest,4);
- g.accept();['shade','water','help'].forEach(id=>g.collect('plans',id));assert.equal(g.canComplete(),false);g.s.bossDead=true;learn(g);if(g.s.quest===4)FINAL_TEST.forEach((q,i)=>g.recordTestAnswer(i,q.correct));assert.ok(g.complete());assert.equal(g.s.finished,true);assert.deepEqual(g.s.completed,[0,1,2,3,4]);assert.equal(g.s.xp,300);assert.equal(g.complete(),false);
+ g.accept();assert.equal(g.collect('plans','shade'),false);g.s.bossDead=true;assert.ok(g.reportBattle());assert.ok(g.acceptFollowUp());['shade','water','help'].forEach(id=>g.collect('plans',id));learn(g);if(g.s.quest===4)FINAL_TEST.forEach((q,i)=>g.recordTestAnswer(i,q.correct));assert.ok(g.complete());assert.equal(g.s.finished,true);assert.deepEqual(g.s.completed,[0,1,2,3,4]);assert.equal(g.s.xp,300);assert.equal(g.complete(),false);
 });
 test('패배해도 완료한 퀘스트와 수집 기록은 보존한다',()=>{
  const g=new Adventure();g.accept();g.collect('clues','bench');g.s.energy=0;g.s.checkpoint=2410;for(let i=0;i<6;i++)g.hurt();assert.equal(g.s.hp,0);g.respawn();assert.equal(g.s.hp,6);assert.equal(g.s.energy,100);assert.equal(g.s.x,2410);assert.deepEqual(g.s.clues,['bench']);
@@ -65,8 +65,17 @@ test('온샘마을 이동은 프로필·가호·수호석과 첫 평가를 보�
 test('한파 마을도 다섯 부탁·필수16개·새 확인5개와 오답 재확인 후 두 번째 수호석을 준다',()=>{
  const g=new Adventure({version:1,chapter:1,blessings:[0],stones:[0],reflected:[0]});assert.equal(COLD.lessons.flatMap(l=>l.practice).length,16);const ids=[...COLD.lessons.flatMap(l=>l.practice),...COLD.final,...COLD.review].map(q=>q.id);assert.equal(new Set(ids).size,26);
  for(let stage=0;stage<5;stage++){
-  g.accept();if(stage===0)['empty','notice','resident'].forEach(x=>g.collect('clues',x));if(stage===1){['a','b'].forEach(x=>g.collect('crates',x));for(let i=0;i<4;i++)g.kill('dust-'+i);}if(stage===2){['water','cups','cloth'].forEach(x=>g.collect('supplies',x));for(let i=0;i<3;i++)g.kill('thorn-'+i);}if(stage===3)[0,1,2].forEach(x=>g.collect('records','record-'+x));if(stage===4){g.s.bossDead=true;['shade','water','help'].forEach(x=>g.collect('plans',x));}
+  g.accept();if(stage===0)['empty','notice','resident'].forEach(x=>g.collect('clues',x));if(stage===1){for(let i=0;i<4;i++)g.kill('dust-'+i);g.reportBattle();g.acceptFollowUp();['a','b'].forEach(x=>g.collect('crates',x));}if(stage===2){for(let i=0;i<3;i++)g.kill('thorn-'+i);g.reportBattle();g.acceptFollowUp();['water','cups','cloth'].forEach(x=>g.collect('supplies',x));}if(stage===3)[0,1,2].forEach(x=>g.collect('records','record-'+x));if(stage===4){g.s.bossDead=true;g.reportBattle();g.acceptFollowUp();['shade','water','help'].forEach(x=>g.collect('plans',x));}
   assert.equal(g.complete(),false);COLD.lessons[stage].practice.forEach(q=>g.recordPractice(q.id,true));if(stage===4){COLD.final.forEach((q,i)=>g.recordTestAnswer(i,i===3?(q.correct+1)%3:q.correct));assert.equal(g.testScore(),4);assert.equal(g.complete(),false);assert.equal(g.recordReview(3,true),true);assert.equal(g.testScore(),4);}assert.ok(g.complete());
  }
  assert.deepEqual(g.s.stones,[0,1]);assert.equal(g.s.finished,true);assert.ok(g.reflect());assert.ok(g.bless());assert.equal(g.maxEnergy(),140);assert.equal(g.advanceVillage(),false);
+});
+
+
+test('모든 복합 부탁은 전투·보고·새 부탁 수락·물품 순서를 저장한다',()=>{
+ for(const chapter of [0,1])for(const quest of [1,2,4]){
+  const g=new Adventure({version:1,chapter,quest,accepted:true,learned:quest}),r=g.request();assert.equal(g.collect(r.collection,'first'),false);assert.equal(g.acceptFollowUp(),false);assert.equal(g.reportBattle(),false);
+  if(r.enemy==='boss')g.s.bossDead=true;else for(let i=0;i<r.count;i++)g.kill(r.enemy+'-'+i);assert.equal(g.collect(r.collection,'first'),false);assert.ok(g.reportBattle());assert.equal(g.taskPhase(),1);const restored=new Adventure(JSON.parse(g.serialize()));assert.equal(restored.taskPhase(),1);assert.equal(restored.collect(r.collection,'first'),false);assert.ok(restored.acceptFollowUp());assert.equal(restored.acceptFollowUp(),false);assert.ok(restored.collect(r.collection,'first'));assert.equal(restored.complete(),false);
+ }
+ const legacy=new Adventure({version:1,quest:1,accepted:true,crates:['crate-0'],killed:['dust-0','dust-1','dust-2','dust-3']});assert.equal(legacy.taskPhase(),2);assert.deepEqual(legacy.s.crates,['crate-0']);assert.ok(legacy.collect('crates','crate-1'));
 });
